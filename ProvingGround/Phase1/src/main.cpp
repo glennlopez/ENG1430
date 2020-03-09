@@ -11,13 +11,13 @@
 // Global Variables and Definition 
 #define commonAnode true
 byte gammatable[256];
+float red, green, blue;
 
 
 // Adafruit Object Initializations
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
 Adafruit_StepperMotor *Stepper1 = AFMS.getStepper(400, 2); // 0.9* stepping angle is 400 steps per revolution
-
 
 // Function Prototypes
 void Serial_Setup();
@@ -35,7 +35,7 @@ void POST_RGBLED();
 void setup() {
   Serial_Setup(); // Setup Serial-Com
   RGBLED_Setup(); // Setup RGBLED GPIO
-  POST();         // Power-On-Self-Test
+  //POST();         // Power-On-Self-Test
 
 }
 
@@ -44,11 +44,23 @@ void loop() {
 
   TCStoRGB_Output();
 
+  /*
   Carriage_MoveLeft(400, 200);
   delay(1000);
   Carriage_MoveRight(400, 200);
   delay(1000);
-  
+  */
+
+
+ // TODO: Logic for RGBLED_Ident
+ if (red > 100 && red < 255){
+   Serial.print("Looks like: RED");
+   Serial.print("\n");  
+   Carriage_MoveLeft(400, 200);
+   delay(1000);
+   
+ }
+ 
 
 
   
@@ -119,7 +131,7 @@ void POST_StepperMotor(){
  * Credit: TEAM 211
  */
 void POST_RGBLED(){
-
+  Serial.println("RGB LED Power-On-Self-Test");
   int timeout = 300; //in ms
 
   delay(timeout);
@@ -213,7 +225,7 @@ void RGBLED_Set(int red, int green, int blue){
  *  Credit: Adafruit Library
  */
 void TCStoRGB_Output(){
-  float red, green, blue;
+
   tcs.setInterrupt(false);  // turn on LED
 
   // Read sensor input (takes 50ms to read)
