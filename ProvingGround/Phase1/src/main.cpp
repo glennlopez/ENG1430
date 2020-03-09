@@ -1,9 +1,7 @@
-// Arduino Library
 #include <Arduino.h>
-
-// Color Sensor Library
 #include <Wire.h>
 #include "Adafruit_TCS34725.h"
+#include <Adafruit_MotorShield.h>
 
 // Color Sensor Pin Definitions
 #define redpin 3
@@ -12,24 +10,44 @@
 #define commonAnode true
 byte gammatable[256];
 
-// TCS (Color Sensor) Object Initialization
+// Adafruit Object Initializations
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
+Adafruit_StepperMotor *myMotor = AFMS.getStepper(200, 2); // 200 steps per rev (M3 and M4)
 
 
 // Function Prototypes
 void Serial_Setup();
 void RGBLED_Setup();
 void TCStoRGB_Output();
+void StepperSpeed_Set(int speed);
 
 
 void setup() {
   Serial_Setup();
   RGBLED_Setup();
+  StepperSpeed_Set(50);
 
 }
 
 void loop() {
   TCStoRGB_Output();
+
+  Serial.println("Single coil steps");
+  myMotor->step(100, FORWARD, SINGLE); 
+  myMotor->step(100, BACKWARD, SINGLE); 
+
+  Serial.println("Double coil steps");
+  myMotor->step(100, FORWARD, DOUBLE); 
+  myMotor->step(100, BACKWARD, DOUBLE);
+  
+  Serial.println("Interleave coil steps");
+  myMotor->step(100, FORWARD, INTERLEAVE); 
+  myMotor->step(100, BACKWARD, INTERLEAVE); 
+  
+  Serial.println("Microstep steps");
+  myMotor->step(50, FORWARD, MICROSTEP); 
+  myMotor->step(50, BACKWARD, MICROSTEP);
  
 }
 
@@ -44,7 +62,7 @@ void loop() {
 void Serial_Setup(){
   // Serial Port Initialization
   Serial.begin(9600);
-  Serial.println("Serial Color Output");
+  Serial.println("Serial Debugger Started");
 
   // Color Sensor Serial Output (debugger)
   if (tcs.begin()) {
@@ -53,6 +71,7 @@ void Serial_Setup(){
     Serial.println("No TCS34725 found");
     while (1);
   }
+
 }
 
 /*
@@ -105,4 +124,13 @@ void TCStoRGB_Output(){
   analogWrite(redpin, gammatable[(int)red]);
   analogWrite(greenpin, gammatable[(int)green]);
   analogWrite(bluepin, gammatable[(int)blue]);
+}
+
+/*
+ * STEPPER MOTOR SPEED (in RPM)
+ * Change the stepper motor speed in RPM
+ */
+void StepperSpeed_Set(int speed){
+  AFMS.begin(); // default 1.6KHz frq
+  myMotor->setSpeed(speed);  // default is 10 rpm   
 }
