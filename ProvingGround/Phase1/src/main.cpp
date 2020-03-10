@@ -70,7 +70,9 @@ void loop() {
 
   
 
-  MoveHome(300);
+  MoveHome(50);
+  MoveRight(1200, 500);
+  delay(700);
   
 
 
@@ -458,7 +460,7 @@ void MoveLeft(int cm, int speed){
   int stepToCM = cm * stepsPerCm;
 
   Stepper1->setSpeed(speed);
-  Stepper1->step(stepToCM, FORWARD, SINGLE); 
+  Stepper1->step(stepToCM, FORWARD, DOUBLE); 
 }
 
 /*
@@ -471,5 +473,5 @@ void MoveRight(int cm, int speed){
   int stepToCM = cm * stepsPerCm;
 
   Stepper1->setSpeed(speed);
-  Stepper1->step(stepToCM, BACKWARD, SINGLE); 
+  Stepper1->step(stepToCM, BACKWARD, DOUBLE); 
 }
