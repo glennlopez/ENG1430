@@ -11,8 +11,9 @@
 #define bluepin 6   // PWM
 
 // Global Variables and Parametric Settings 
-#define commonAnode true  // Change as per RGBLED type
-int stepsPerCm = 1;       // Calibrate this
+#define commonAnode true    // Change as per RGBLED type
+int stepsPerCm = 1;         // Calibrate this
+bool serialDebugger = false; // Enables Serial debugger (slows down runtime)
 
 byte gammatable[256];
 float red, green, blue;
@@ -46,24 +47,23 @@ Servo vacuumServo, zServo;
 // ARDUINO SETUP
 void setup() {
   // Module Setup Routine
-  //Serial_Setup();
-  //AdafruitMotorShield_Setup();
-  //Stepper_Setup();
-  //ColorSensor_Setup();
+  Serial_Setup();
+  AdafruitMotorShield_Setup();
+  Stepper_Setup();
   RGBLED_Setup();
-  //Servo_Setup();
+  ColorSensor_Setup();
+  Servo_Setup();
 
   // Power-On-Self-Test Routine
-  //POST_StepperMotor();
-  //delay(300);
-  POST_RGBLED();
-  //delay(300);
+  POST_StepperMotor();  delay(300);
+  POST_RGBLED();  delay(300);
+  POST_Servos();  delay(300);
 
 }
 
 // ARDUINO INFINITE LOOP
 void loop() {
-
+  //TCStoRGB_Output();
   
 
  /*
@@ -76,21 +76,8 @@ void loop() {
  }
  */
 
-  // Debug Run
-  /*
-  TCStoRGB_Output();
-  vacuumServo.write(0); 
-  zServo.write(90);
-  Carriage_MoveLeft(50, 200);
-  delay(1000);
-  vacuumServo.write(180);  
-  zServo.write(0);
-  Carriage_MoveRight(50, 200);
-  delay(1000);
-  vacuumServo.write(90);  
-  zServo.write(180);
-  delay(1000);
-  */
+ 
+  
 
 
 
@@ -229,21 +216,33 @@ void RGBLED_Set(int red, int green, int blue){
  * Credit: Adafruit Library
  */
 void POST_StepperMotor(){
+  if (serialDebugger){
+    Serial.println("Stepper Motor: Single Coil");
+  }
   Stepper1->setSpeed(10);
   //Serial.println("Single coil steps");
   Stepper1->step(100, FORWARD, SINGLE); 
   Stepper1->step(100, BACKWARD, SINGLE); 
 
+  if (serialDebugger){
+    Serial.println("Stepper Motor: Double Coil");
+  }
   Stepper1->setSpeed(50);
   //Serial.println("Double coil steps");
   Stepper1->step(100, FORWARD, DOUBLE); 
   Stepper1->step(100, BACKWARD, DOUBLE);
   
+  if (serialDebugger){
+    Serial.println("Stepper Motor: Interleave Mode");
+  }
   Stepper1->setSpeed(10);
   //Serial.println("Interleave coil steps");
   Stepper1->step(50, FORWARD, INTERLEAVE); 
   Stepper1->step(50, BACKWARD, INTERLEAVE); 
   
+  if (serialDebugger){
+    Serial.println("Stepper Motor: Microstepping Mode");
+  }
   Stepper1->setSpeed(100);
   //Serial.println("Microstep steps");
   Stepper1->step(20, FORWARD, MICROSTEP); 
@@ -256,32 +255,149 @@ void POST_StepperMotor(){
  * Credit: TEAM 211
  */
 void POST_RGBLED(){
-  Serial.println("RGB LED Power-On-Self-Test");
-  int timeout = 300; //in ms
+  if (serialDebugger){
+    Serial.println("RGB LED Power-On-Self-Test");
+  }
+  int timeout = 500; //in ms
 
-  delay(timeout);
-  RGBLED_Set(255, 255, 255);
+  /* NOTE:
+   * Common Anode inverts the value of RGB. The code below 
+   * takes into account the two types of RGBLED avail
+   * COTS (Commercial off the shelf)
+   */
 
-  delay(timeout);
-  RGBLED_Set(255, 0, 0);
+  if (commonAnode == true){
+    // ON-OFF-ON-OFF
+    RGBLED_Set(255, 255, 255);
+    delay(timeout);
+    RGBLED_Set(0, 0, 0);
+    delay(timeout);
+    RGBLED_Set(255, 255, 255);
+    delay(timeout);
+    RGBLED_Set(0, 0, 0);
+    delay(timeout);
+    RGBLED_Set(255, 255, 255);
+    delay(timeout);
 
-  delay(timeout);
-  RGBLED_Set(0, 255, 0);
+    // Test RED
+    if (serialDebugger){
+    Serial.println("RGBLED: Red");
+    }
+    RGBLED_Set(0, 255, 255);
+    delay(timeout);
 
-  delay(timeout);
-  RGBLED_Set(0, 0, 255);
+    // Test GREEN
+    if (serialDebugger){
+    Serial.println("RGBLED: Green");
+    }
+    RGBLED_Set(255, 0, 255);
+    delay(timeout);
 
-  delay(timeout);
-  RGBLED_Set(255, 255, 0);
+    // Test BLUE
+    if (serialDebugger){
+    Serial.println("RGBLED: Blue");
+    }
+    RGBLED_Set(255, 255, 0);
+    delay(timeout);
 
-  delay(timeout);
-  RGBLED_Set(255, 0, 255);
+    // Test WHITE
+    if (serialDebugger){
+    Serial.println("RGBLED: WHITE");
+    }
+    RGBLED_Set(0, 0, 0);
+    delay(timeout);
+  }
+  else{
+        // ON-OFF-ON-OFF
+    RGBLED_Set(0, 0, 0);
+    delay(timeout);
+    RGBLED_Set(255, 255, 255);
+    delay(timeout);
+    RGBLED_Set(0, 0, 0);
+    delay(timeout);
+    RGBLED_Set(255, 255, 255);
+    delay(timeout);
+    RGBLED_Set(0, 0, 0);
+    delay(timeout);
 
-  delay(timeout);
-  RGBLED_Set(0, 255, 255);
+    // Test RED
+    if (serialDebugger){
+    Serial.println("RGBLED: Red");
+    }
+    RGBLED_Set(255, 0, 0);
+    delay(timeout);
 
+    // Test GREEN
+    if (serialDebugger){
+    Serial.println("RGBLED: Green");
+    }
+    RGBLED_Set(0, 255, 0);
+    delay(timeout);
+
+    // Test BLUE
+    if (serialDebugger){
+    Serial.println("RGBLED: Blue");
+    }
+    RGBLED_Set(0, 0, 255);
+    delay(timeout);
+
+    // Test WHITE
+    if (serialDebugger){
+    Serial.println("RGBLED: WHITE");
+    }
+    RGBLED_Set(255, 255, 255);
+    delay(timeout);
+  }
+}
+
+/*
+ * SERVO TEST SUBROUTINE
+ * Runs both servos in 90*, 180* 0* pos
+ * Credit: TEAM 211
+ */
+void POST_Servos(){  
+  int timeout = 1000;
+
+  if (serialDebugger){
+    Serial.println("Servo(1): 0* | Servo(2): 0*");
+  }
+  vacuumServo.write(0);  
+  zServo.write(0);
   delay(timeout);
-  RGBLED_Set(0, 0, 0);
+
+  if (serialDebugger){
+    Serial.println("Servo(1): 90* | Servo(2): 180*");
+  }
+  vacuumServo.write(90);  
+  zServo.write(180);
+  delay(timeout);
+
+  if (serialDebugger){
+    Serial.println("Servo(1): 0* | Servo(2): 90*");
+  }
+  vacuumServo.write(0); 
+  zServo.write(90);
+  delay(timeout);
+
+  if (serialDebugger){
+    Serial.println("Servo(1): 180* | Servo(2): 0*");
+  }
+  vacuumServo.write(180);  
+  zServo.write(0);
+  delay(timeout);
+
+  if (serialDebugger){
+    Serial.println("Servo(1): 90* | Servo(2): 180*");
+  }
+  vacuumServo.write(135);  
+  zServo.write(45);
+  delay(timeout);
+
+  if (serialDebugger){
+    Serial.println("Servo(1): 0* | Servo(2): 0*");
+  }
+  vacuumServo.write(0);  
+  zServo.write(0);
   delay(timeout);
 }
 
