@@ -2,6 +2,7 @@
 #include <Wire.h>
 #include "Adafruit_TCS34725.h"
 #include <Adafruit_MotorShield.h>
+#include <Servo.h>
 
 // GPIO Pin Definition
 #define redpin 3    // PWM
@@ -13,11 +14,11 @@
 byte gammatable[256];
 float red, green, blue;
 
-
 // Adafruit Object Initializations
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
 Adafruit_StepperMotor *Stepper1 = AFMS.getStepper(400, 2); // 0.9* stepping angle is 400 steps per revolution
+Servo vacuumServo, zServo;
 
 // Function Prototypes
 void Serial_Setup();
@@ -25,41 +26,53 @@ void RGBLED_Setup();
 void POST();
 void TCStoRGB_Output();
 void POST_StepperMotor();
+void POST_Servos();
 void StepperSpeed_Set(int speed);
 void Carriage_MoveLeft(int cm, int speed);
 void Carriage_MoveRight(int cm, int speed);
 void RGBLED_Set(int red, int green, int blue);
 void POST_RGBLED();
+void Servo_Setup();
 
 // ARDUINO SETUP ROUTINE
 void setup() {
   Serial_Setup(); // Setup Serial-Com
   RGBLED_Setup(); // Setup RGBLED GPIO
-  //POST();         // Power-On-Self-Test
+  Servo_Setup();
+  POST();         // Power-On-Self-Test
 
 }
 
 // ARDUINO LOOP ROUTINE
 void loop() {
 
-  TCStoRGB_Output();
+  
 
-  /*
-  Carriage_MoveLeft(400, 200);
-  delay(1000);
-  Carriage_MoveRight(400, 200);
-  delay(1000);
-  */
-
-
+ /*
  // TODO: Logic for RGBLED_Ident
- if (red > 100 && red < 255){
+ if ((red > 100 && red < 255) ){
    Serial.print("Looks like: RED");
    Serial.print("\n");  
    Carriage_MoveLeft(400, 200);
-   delay(1000);
    
  }
+ */
+
+  // Debug Run
+  TCStoRGB_Output();
+  vacuumServo.write(0); 
+  zServo.write(90);
+  Carriage_MoveLeft(50, 200);
+  delay(1000);
+  vacuumServo.write(180);  
+  zServo.write(0);
+  Carriage_MoveRight(50, 200);
+  delay(1000);
+  vacuumServo.write(90);  
+  zServo.write(180);
+  delay(1000);
+  
+
  
 
 
@@ -124,6 +137,7 @@ void POST_StepperMotor(){
   Stepper1->step(20, FORWARD, MICROSTEP); 
   Stepper1->step(20, BACKWARD, MICROSTEP);
 }
+
 
 /*
  * RGB LED TEST ROUTINE
@@ -203,8 +217,13 @@ void RGBLED_Setup(){
       gammatable[i] = x;
     }
 
-    Serial.println(gammatable[i]);
+    //Serial.println(gammatable[i]); // Comment out
   }
+}
+
+void Servo_Setup(){
+  vacuumServo.attach(9);
+  zServo.attach(10);
 }
 
 /*
@@ -234,10 +253,12 @@ void TCStoRGB_Output(){
   tcs.setInterrupt(true);  // turn off LED
 
   // Serial Output of RGB values
+  
   Serial.print("R:\t"); Serial.print(int(red)); 
   Serial.print("\tG:\t"); Serial.print(int(green)); 
   Serial.print("\tB:\t"); Serial.print(int(blue));
   Serial.print("\n");
+  
 
   // Output sensor vals to LED
   analogWrite(redpin, gammatable[(int)red]);
