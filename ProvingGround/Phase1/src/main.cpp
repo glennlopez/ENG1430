@@ -9,6 +9,7 @@
 #define redpin 3    // PWM
 #define greenpin 5  // PWM
 #define bluepin 6   // PWM
+#define homepin 7   
 
 // Global Variables and Parametric Settings 
 #define commonAnode true    // Change as per RGBLED type
@@ -16,7 +17,8 @@ int stepsPerCm = 1;         // Calibrate this
 bool serialDebugger = false; // Enables Serial debugger (slows down runtime)
 
 byte gammatable[256];
-float red, green, blue;
+float red, green, blue;     // <Color Sensor Values>
+int homeState = 0;
 
 
 // Function Prototypes
@@ -32,9 +34,10 @@ void POST_RGBLED();
 void POST_Servos();
 
 void TCStoRGB_Output();
+void RGBLED_Set(int red, int green, int blue);
 void MoveLeft(int cm, int speed);
 void MoveRight(int cm, int speed);
-void RGBLED_Set(int red, int green, int blue);
+void MoveHome(int homeSpeed);
 
 
 // OOP Object Initializations
@@ -50,33 +53,24 @@ void setup() {
   Serial_Setup();
   AdafruitMotorShield_Setup();
   Stepper_Setup();
-  RGBLED_Setup();
-  ColorSensor_Setup();
-  Servo_Setup();
+  //RGBLED_Setup();
+  //ColorSensor_Setup();
+  //Servo_Setup();
 
-  // Power-On-Self-Test Routine
-  POST_StepperMotor();  delay(300);
-  POST_RGBLED();  delay(300);
-  POST_Servos();  delay(300);
+  // Visual Power-On-Self-Test Routine
+  //POST_StepperMotor();  delay(300);
+  //POST_RGBLED();  delay(300);
+  //POST_Servos();  delay(300);
 
 }
 
 // ARDUINO INFINITE LOOP
 void loop() {
   //TCStoRGB_Output();
+
   
 
- /*
- // TODO: Logic for RGBLED_Ident
- if ((red > 100 && red < 255) ){
-   Serial.print("Looks like: RED");
-   Serial.print("\n");  
-   Carriage_MoveLeft(400, 200);
-   
- }
- */
-
- 
+  MoveHome(300);
   
 
 
@@ -100,15 +94,39 @@ void loop() {
 
 
 
+/*
+ * CARRIAGE HOMING SUBROUTINE
+ * 
+ */ 
+void MoveHome(int homeSpeed){
+  do{
+    homeState = digitalRead(homepin);
+    if(homeState == LOW){
+      if (serialDebugger){
+        Serial.println("Carriage is Home");
+      }
+      break;
+    }
+    MoveLeft(1, homeSpeed);
+    //MoveRight(1, homeSpeed);
+    if (serialDebugger){
+      Serial.println("Waiting for carriage return");
+    }
+  }
+  while(homeState == HIGH);    
+}
 
 
 
 
 
-
-
-
-
+/*
+ * MICROSWITCH (HOME) SETUP ROUTINE
+ * 
+ */
+void uSwitchHome_Setup(){
+  pinMode(homepin, INPUT);
+}
 
 
 
