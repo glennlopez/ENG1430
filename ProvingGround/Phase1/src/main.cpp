@@ -36,10 +36,15 @@ void Servo_Setup();
 
 // ARDUINO SETUP ROUTINE
 void setup() {
-  Serial_Setup(); // Setup Serial-Com
-  RGBLED_Setup(); // Setup RGBLED GPIO
+  Serial_Setup();
+  RGBLED_Setup();
   Servo_Setup();
-  POST();         // Power-On-Self-Test
+
+  // Power-On-Self-Test Routines
+  POST_StepperMotor();
+  delay(300);
+  POST_RGBLED();
+  delay(300);
 
 }
 
@@ -59,6 +64,7 @@ void loop() {
  */
 
   // Debug Run
+  /*
   TCStoRGB_Output();
   vacuumServo.write(0); 
   zServo.write(90);
@@ -71,6 +77,7 @@ void loop() {
   vacuumServo.write(90);  
   zServo.write(180);
   delay(1000);
+  */
   
 
  
@@ -100,40 +107,31 @@ void loop() {
 
 
 
-/*
- * POWER-ON-SELF-TEST
- * Tests Stepper Motor, RGB, Color Sensor, Servos
- * Credit: TEAM 211 
- */
-void POST(){
-  POST_StepperMotor();
-  POST_RGBLED();
-}
 
 /*
  * STEPPER MOTOR TEST ROUTINE
- * System check for stepper motor
+ * Functionality test 
  * Dependency: Adafruit_MotorShield.h
  * Credit: Adafruit Library
  */
 void POST_StepperMotor(){
   Stepper1->setSpeed(10);
-  Serial.println("Single coil steps");
+  //Serial.println("Single coil steps");
   Stepper1->step(100, FORWARD, SINGLE); 
   Stepper1->step(100, BACKWARD, SINGLE); 
 
   Stepper1->setSpeed(50);
-  Serial.println("Double coil steps");
+  //Serial.println("Double coil steps");
   Stepper1->step(100, FORWARD, DOUBLE); 
   Stepper1->step(100, BACKWARD, DOUBLE);
   
   Stepper1->setSpeed(10);
-  Serial.println("Interleave coil steps");
+  //Serial.println("Interleave coil steps");
   Stepper1->step(50, FORWARD, INTERLEAVE); 
   Stepper1->step(50, BACKWARD, INTERLEAVE); 
   
   Stepper1->setSpeed(100);
-  Serial.println("Microstep steps");
+  //Serial.println("Microstep steps");
   Stepper1->step(20, FORWARD, MICROSTEP); 
   Stepper1->step(20, BACKWARD, MICROSTEP);
 }
@@ -176,7 +174,7 @@ void POST_RGBLED(){
 
 /*
  *  SERIAL OUTPUT SETUP ROUTINE
- *  Setup routine for serial output/debugging
+ *  Setup routine for serial port
  *  Credit: Adafruit Library
  */
 void Serial_Setup(){
@@ -200,9 +198,10 @@ void Serial_Setup(){
  *  Credit: Adafruit Library
  */
 void RGBLED_Setup(){
-    pinMode(redpin, OUTPUT);
-    pinMode(greenpin, OUTPUT);
-    pinMode(bluepin, OUTPUT);
+
+  pinMode(redpin, OUTPUT);
+  pinMode(greenpin, OUTPUT);
+  pinMode(bluepin, OUTPUT);
 
   // RGB Human-readable-Gama-conversion
   for (int i=0; i<256; i++) {
@@ -213,14 +212,20 @@ void RGBLED_Setup(){
 
     if (commonAnode) {
       gammatable[i] = 255 - x;
-    } else {
+    } 
+    else {
       gammatable[i] = x;
     }
-
-    //Serial.println(gammatable[i]); // Comment out
+    //Serial.println(gammatable[i]);
   }
 }
 
+
+/*
+ * SERVO SETUP SUBROUTINE
+ * Setup the pins for vacuum servo and z-axis servo
+ * Credit: TEAM 211
+ */
 void Servo_Setup(){
   vacuumServo.attach(9);
   zServo.attach(10);
