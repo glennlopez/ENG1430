@@ -11,7 +11,7 @@
 #define bluepin 6   // PWM
 
 // Global Variables and Parametric Settings 
-#define commonAnode true  // Change as per RGBLED
+#define commonAnode true  // Change as per RGBLED type
 int stepsPerCm = 1;       // Calibrate this
 
 byte gammatable[256];
@@ -20,20 +20,23 @@ float red, green, blue;
 
 // Function Prototypes
 void Serial_Setup();
+void AdafruitMotorShield_Setup();
 void Stepper_Setup();
 void ColorSensor_Setup();
 void RGBLED_Setup();
-void POST();
-void TCStoRGB_Output();
+void Servo_Setup();
+
 void POST_StepperMotor();
+void POST_RGBLED();
 void POST_Servos();
+
+void TCStoRGB_Output();
 void MoveLeft(int cm, int speed);
 void MoveRight(int cm, int speed);
 void RGBLED_Set(int red, int green, int blue);
-void POST_RGBLED();
-void Servo_Setup();
 
-// Adafruit C++ Object Initializations
+
+// OOP Object Initializations
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
 Adafruit_StepperMotor *Stepper1 = AFMS.getStepper(400, 2); // 0.9* stepping angle is 400 steps per revolution
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
@@ -43,16 +46,17 @@ Servo vacuumServo, zServo;
 // ARDUINO SETUP
 void setup() {
   // Module Setup Routine
-  Serial_Setup();
-  Stepper_Setup();
+  //Serial_Setup();
+  //AdafruitMotorShield_Setup();
+  //Stepper_Setup();
   //ColorSensor_Setup();
-  //RGBLED_Setup();
+  RGBLED_Setup();
   //Servo_Setup();
 
   // Power-On-Self-Test Routine
   //POST_StepperMotor();
   //delay(300);
-  //POST_RGBLED();
+  POST_RGBLED();
   //delay(300);
 
 }
@@ -90,21 +94,7 @@ void loop() {
 
 
 
-  Serial.println("Single coil steps");
-  Stepper1->step(100, FORWARD, SINGLE); 
-  Stepper1->step(100, BACKWARD, SINGLE); 
 
-  Serial.println("Double coil steps");
-  Stepper1->step(100, FORWARD, DOUBLE); 
-  Stepper1->step(100, BACKWARD, DOUBLE);
-  
-  Serial.println("Interleave coil steps");
-  Stepper1->step(100, FORWARD, INTERLEAVE); 
-  Stepper1->step(100, BACKWARD, INTERLEAVE); 
-  
-  Serial.println("Microstep steps");
-  Stepper1->step(50, FORWARD, MICROSTEP); 
-  Stepper1->step(50, BACKWARD, MICROSTEP);
   
 
  
@@ -149,21 +139,28 @@ void Serial_Setup(){
 }
 
 /*
- *  STEPPER MOTOR SETUP SUBROUTINE
- *  Initializes Adafruit Motorshield and default speed for stepper motors
+ *  ADAFRUIT MOTORSHIELD SETUP SUBROUTINE
+ *  Initializes everything needed to get the Motorshield working properly
  *  Credit: Adafruit Library
  */
-void Stepper_Setup(){
+void AdafruitMotorShield_Setup(){
   AFMS.begin(); // default 1.6KHz frq
   //AFMS.begin(1000);  // OR with a different frequency, say 1KHz
-  
-  // Initial Stepper motor speed
-  Stepper1->setSpeed(10);  // default is 10 rpm   
 }
 
 /*
  *  STEPPER MOTOR SETUP SUBROUTINE
  *  Initializes Adafruit Motorshield and default speed for stepper motors
+ *  Credit: Adafruit Library
+ */
+void Stepper_Setup(){
+  // Initial Stepper motor speed
+  Stepper1->setSpeed(10);  // default is 10 rpm   
+}
+
+/*
+ *  TCS34725 SETUP SUBROUTINE
+ *  Initializes and tests to see if TSC is found and running
  *  Credit: Adafruit Library
  */
 void ColorSensor_Setup(){
@@ -214,7 +211,8 @@ void Servo_Setup(){
 }
 
 /*
- *  SET RGB LED OUTPUT
+ *  RGBLED OUTPUT
+ *  Manually changes the LED color
  *  If RGB is Common Anode, values are to be inverted (255 is 0)
  *  Credit: TEAM 211
  */
@@ -226,7 +224,7 @@ void RGBLED_Set(int red, int green, int blue){
 
 /*
  * STEPPER MOTOR TEST SUBROUTINE
- * Functionality test 
+ * Runs Forward, Backward, Single, Interleave, and Microstep function
  * Dependency: Adafruit_MotorShield.h
  * Credit: Adafruit Library
  */
@@ -254,7 +252,7 @@ void POST_StepperMotor(){
 
 /*
  * RGB LED TEST SUBROUTINE
- * System check for stepper motor
+ * Runs every diode in RGBLED
  * Credit: TEAM 211
  */
 void POST_RGBLED(){
