@@ -14,7 +14,7 @@
 // Global Variables and Parametric Settings 
 #define commonAnode true    // Change as per RGBLED type
 int stepsPerCm = 1;         // Calibrate this
-bool serialDebugger = false; // Enables Serial debugger (slows down runtime)
+bool serialDebugger = true; // Enables Serial debugger (slows down runtime)
 
 byte gammatable[256];
 float red, green, blue;     // <Color Sensor Values>
@@ -28,21 +28,24 @@ void Stepper_Setup();
 void ColorSensor_Setup();
 void RGBLED_Setup();
 void Servo_Setup();
+void uSwitch_Setup();
 
-void POST_StepperMotor();
+void POST_Steppers();
 void POST_RGBLED();
 void POST_Servos();
 
 void TCStoRGB_Output();
 void RGBLED_Set(int red, int green, int blue);
-void MoveLeft(int cm, int speed);
-void MoveRight(int cm, int speed);
-void MoveHome(int homeSpeed);
+void PushBack(int cm, int speed);
+void Retract(int cm, int speed);
+
+void HomeBlocks(int homeSpeed);
 
 
 // OOP Object Initializations
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
-Adafruit_StepperMotor *Stepper1 = AFMS.getStepper(400, 2); // 0.9* stepping angle is 400 steps per revolution
+Adafruit_StepperMotor *Stepper1 = AFMS.getStepper(400, 1); // Carriage Servo (MoveLeft, MoveRight)
+Adafruit_StepperMotor *Stepper2 = AFMS.getStepper(400, 2); // Pushback Servo (Pushback, Retract)
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Servo vacuumServo, zServo;
 
@@ -53,14 +56,14 @@ void setup() {
   Serial_Setup();
   AdafruitMotorShield_Setup();
   Stepper_Setup();
-  //RGBLED_Setup();
-  //ColorSensor_Setup();
-  //Servo_Setup();
+  RGBLED_Setup();
+  ColorSensor_Setup();
+  Servo_Setup();
 
   // Visual Power-On-Self-Test Routine
-  //POST_StepperMotor();  delay(300);
-  //POST_RGBLED();  delay(300);
-  //POST_Servos();  delay(300);
+  POST_Steppers();  delay(300);
+  POST_RGBLED();  delay(300);
+  POST_Servos();  delay(300);
 
 }
 
@@ -70,9 +73,9 @@ void loop() {
 
   
 
-  MoveHome(50);
-  MoveRight(1200, 500);
-  delay(700);
+  //HomeBlocks(100);
+  //Retract(1200, 500);
+  //delay(2000);
   
 
 
@@ -95,40 +98,6 @@ void loop() {
 
 
 
-
-/*
- * CARRIAGE HOMING SUBROUTINE
- * 
- */ 
-void MoveHome(int homeSpeed){
-  do{
-    homeState = digitalRead(homepin);
-    if(homeState == LOW){
-      if (serialDebugger){
-        Serial.println("Carriage is Home");
-      }
-      break;
-    }
-    MoveLeft(1, homeSpeed);
-    //MoveRight(1, homeSpeed);
-    if (serialDebugger){
-      Serial.println("Waiting for carriage return");
-    }
-  }
-  while(homeState == HIGH);    
-}
-
-
-
-
-
-/*
- * MICROSWITCH (HOME) SETUP ROUTINE
- * 
- */
-void uSwitchHome_Setup(){
-  pinMode(homepin, INPUT);
-}
 
 
 
@@ -162,7 +131,8 @@ void AdafruitMotorShield_Setup(){
  */
 void Stepper_Setup(){
   // Initial Stepper motor speed
-  Stepper1->setSpeed(10);  // default is 10 rpm   
+  Stepper1->setSpeed(10);   // default is 10 rpm   
+  Stepper2->setSpeed(10);   // default is 10 rpm
 }
 
 /*
@@ -235,9 +205,9 @@ void RGBLED_Set(int red, int green, int blue){
  * Dependency: Adafruit_MotorShield.h
  * Credit: Adafruit Library
  */
-void POST_StepperMotor(){
+void POST_Steppers(){
   if (serialDebugger){
-    Serial.println("Stepper Motor: Single Coil");
+    Serial.println("Stepper Motor 1: Single Coil");
   }
   Stepper1->setSpeed(10);
   //Serial.println("Single coil steps");
@@ -245,7 +215,7 @@ void POST_StepperMotor(){
   Stepper1->step(100, BACKWARD, SINGLE); 
 
   if (serialDebugger){
-    Serial.println("Stepper Motor: Double Coil");
+    Serial.println("Stepper Motor 1: Double Coil");
   }
   Stepper1->setSpeed(50);
   //Serial.println("Double coil steps");
@@ -253,7 +223,7 @@ void POST_StepperMotor(){
   Stepper1->step(100, BACKWARD, DOUBLE);
   
   if (serialDebugger){
-    Serial.println("Stepper Motor: Interleave Mode");
+    Serial.println("Stepper Motor 1: Interleave Mode");
   }
   Stepper1->setSpeed(10);
   //Serial.println("Interleave coil steps");
@@ -261,12 +231,45 @@ void POST_StepperMotor(){
   Stepper1->step(50, BACKWARD, INTERLEAVE); 
   
   if (serialDebugger){
-    Serial.println("Stepper Motor: Microstepping Mode");
+    Serial.println("Stepper Motor 1: Microstepping Mode");
   }
   Stepper1->setSpeed(100);
   //Serial.println("Microstep steps");
   Stepper1->step(20, FORWARD, MICROSTEP); 
   Stepper1->step(20, BACKWARD, MICROSTEP);
+
+
+  if (serialDebugger){
+    Serial.println("Stepper Motor 2: Single Coil");
+  }
+  Stepper2->setSpeed(10);
+  //Serial.println("Single coil steps");
+  Stepper2->step(100, FORWARD, SINGLE); 
+  Stepper2->step(100, BACKWARD, SINGLE); 
+
+  if (serialDebugger){
+    Serial.println("Stepper Motor 2: Double Coil");
+  }
+  Stepper2->setSpeed(50);
+  //Serial.println("Double coil steps");
+  Stepper2->step(100, FORWARD, DOUBLE); 
+  Stepper2->step(100, BACKWARD, DOUBLE);
+  
+  if (serialDebugger){
+    Serial.println("Stepper Motor 2: Interleave Mode");
+  }
+  Stepper2->setSpeed(10);
+  //Serial.println("Interleave coil steps");
+  Stepper2->step(50, FORWARD, INTERLEAVE); 
+  Stepper2->step(50, BACKWARD, INTERLEAVE); 
+  
+  if (serialDebugger){
+    Serial.println("Stepper Motor 2: Microstepping Mode");
+  }
+  Stepper2->setSpeed(100);
+  //Serial.println("Microstep steps");
+  Stepper2->step(20, FORWARD, MICROSTEP); 
+  Stepper2->step(20, BACKWARD, MICROSTEP);
 }
 
 /*
@@ -451,27 +454,60 @@ void TCStoRGB_Output(){
 }
 
 /*
- * CARRIAGE MOVE-LEFT SUBROUTINE
+ * PUSHBACK SUBROUTINE
  * Logic for moving carriage to the left, with distance and speed params 
  * Dependency: Adafruit_MotorShield.h
  * Credit: TEAM 211
  */
-void MoveLeft(int cm, int speed){
+void PushBack(int cm, int speed){
   int stepToCM = cm * stepsPerCm;
 
-  Stepper1->setSpeed(speed);
-  Stepper1->step(stepToCM, FORWARD, DOUBLE); 
+  Stepper2->setSpeed(speed);
+  Stepper2->step(stepToCM, FORWARD, DOUBLE); 
 }
 
 /*
- * CARRIAGE MOVE-RIGHT SUBROUTINE
+ * RETRACT SUBROUTINE
  * Logic for moving carriage to the left, with distance and speed params 
  * Dependency: Adafruit_MotorShield.h
  * Credit: TEAM 211
  */
-void MoveRight(int cm, int speed){
+void Retract(int cm, int speed){
   int stepToCM = cm * stepsPerCm;
 
-  Stepper1->setSpeed(speed);
-  Stepper1->step(stepToCM, BACKWARD, DOUBLE); 
+  Stepper2->setSpeed(speed);
+  Stepper2->step(stepToCM, BACKWARD, DOUBLE); 
+}
+
+/*
+ * MICROSWITCH SETUP ROUTINE
+ * Setup routine for microswitches
+ * Credit: TEAM 211
+ */
+void uSwitch_Setup(){
+  pinMode(homepin, INPUT);
+}
+
+/*
+ * HOME BLOCK SUBROUTINE
+ * Logic for moving a block to be picked up at a known pos
+ * Dependency: Adafruit_MotorShield.h
+ * Credit: TEAM 211
+ */ 
+void HomeBlocks(int homeSpeed){
+  do{
+    homeState = digitalRead(homepin);
+    if(homeState == LOW){
+      if (serialDebugger){
+        Serial.println("Pushback: Block Positioned");
+      }
+      break;
+    }
+    PushBack(1, homeSpeed);
+    if (serialDebugger){
+      Serial.println("Pushback: Homing...");
+    }
+  }
+  while(homeState == HIGH);
+  Retract(800, 700);    
 }
