@@ -1,54 +1,63 @@
-#include <Arduino.h>
+// Libs and header files
 #include <Wire.h>
 #include "Adafruit_TCS34725.h"
 #include <Adafruit_MotorShield.h>
 #include <Servo.h>
+#include <Arduino.h>
 
 // GPIO Pin Definition
 #define redpin 3    // PWM
 #define greenpin 5  // PWM
 #define bluepin 6   // PWM
 
-// Global Variables and Definition 
-#define commonAnode true
+// Global Variables and Parametric Settings 
+#define commonAnode true  // Change as per RGBLED
+int stepsPerCm = 1;       // Calibrate this
+
 byte gammatable[256];
 float red, green, blue;
 
-// Adafruit Object Initializations
-Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
-Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
-Adafruit_StepperMotor *Stepper1 = AFMS.getStepper(400, 2); // 0.9* stepping angle is 400 steps per revolution
-Servo vacuumServo, zServo;
 
 // Function Prototypes
 void Serial_Setup();
+void Stepper_Setup();
+void ColorSensor_Setup();
 void RGBLED_Setup();
 void POST();
 void TCStoRGB_Output();
 void POST_StepperMotor();
 void POST_Servos();
-void StepperSpeed_Set(int speed);
-void Carriage_MoveLeft(int cm, int speed);
-void Carriage_MoveRight(int cm, int speed);
+void MoveLeft(int cm, int speed);
+void MoveRight(int cm, int speed);
 void RGBLED_Set(int red, int green, int blue);
 void POST_RGBLED();
 void Servo_Setup();
 
-// ARDUINO SETUP ROUTINE
-void setup() {
-  Serial_Setup();
-  RGBLED_Setup();
-  Servo_Setup();
+// Adafruit C++ Object Initializations
+Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
+Adafruit_StepperMotor *Stepper1 = AFMS.getStepper(400, 2); // 0.9* stepping angle is 400 steps per revolution
+Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+Servo vacuumServo, zServo;
 
-  // Power-On-Self-Test Routines
-  POST_StepperMotor();
-  delay(300);
-  POST_RGBLED();
-  delay(300);
+
+// ARDUINO SETUP
+void setup() {
+  // Module Setup Routine
+  Serial_Setup();
+  Stepper_Setup();
+  //ColorSensor_Setup();
+  //RGBLED_Setup();
+  //Servo_Setup();
+
+  // Power-On-Self-Test Routine
+  //POST_StepperMotor();
+  //delay(300);
+  //POST_RGBLED();
+  //delay(300);
 
 }
 
-// ARDUINO LOOP ROUTINE
+// ARDUINO INFINITE LOOP
 void loop() {
 
   
@@ -78,6 +87,24 @@ void loop() {
   zServo.write(180);
   delay(1000);
   */
+
+
+
+  Serial.println("Single coil steps");
+  Stepper1->step(100, FORWARD, SINGLE); 
+  Stepper1->step(100, BACKWARD, SINGLE); 
+
+  Serial.println("Double coil steps");
+  Stepper1->step(100, FORWARD, DOUBLE); 
+  Stepper1->step(100, BACKWARD, DOUBLE);
+  
+  Serial.println("Interleave coil steps");
+  Stepper1->step(100, FORWARD, INTERLEAVE); 
+  Stepper1->step(100, BACKWARD, INTERLEAVE); 
+  
+  Serial.println("Microstep steps");
+  Stepper1->step(50, FORWARD, MICROSTEP); 
+  Stepper1->step(50, BACKWARD, MICROSTEP);
   
 
  
@@ -108,8 +135,97 @@ void loop() {
 
 
 
+
+
 /*
- * STEPPER MOTOR TEST ROUTINE
+ *  SERIAL OUTPUT SETUP SUBROUTINE
+ *  Sets up the baudrate
+ *  Serial port used mainly for debugging
+ *  Credit: TEAM 211
+ */
+void Serial_Setup(){
+  Serial.begin(9600);
+  Serial.println("Serial Initialized");
+}
+
+/*
+ *  STEPPER MOTOR SETUP SUBROUTINE
+ *  Initializes Adafruit Motorshield and default speed for stepper motors
+ *  Credit: Adafruit Library
+ */
+void Stepper_Setup(){
+  AFMS.begin(); // default 1.6KHz frq
+  //AFMS.begin(1000);  // OR with a different frequency, say 1KHz
+  
+  // Initial Stepper motor speed
+  Stepper1->setSpeed(10);  // default is 10 rpm   
+}
+
+/*
+ *  STEPPER MOTOR SETUP SUBROUTINE
+ *  Initializes Adafruit Motorshield and default speed for stepper motors
+ *  Credit: Adafruit Library
+ */
+void ColorSensor_Setup(){
+  if (tcs.begin()) {
+  Serial.println("Found sensor");
+  } else {
+    Serial.println("No TCS34725 found");
+    while (1);
+  }
+}
+
+/*
+ *  RGBLED SETUP ROUTINE (pin and logic)
+ *  Setup routine RGBLED using gamatable conversion
+ *  Credit: Adafruit Library
+ */
+void RGBLED_Setup(){
+
+  pinMode(redpin, OUTPUT);
+  pinMode(greenpin, OUTPUT);
+  pinMode(bluepin, OUTPUT);
+
+  // RGB Human-readable-Gama-conversion
+  for (int i=0; i<256; i++) {
+    float x = i;
+    x /= 255;
+    x = pow(x, 2.5);
+    x *= 255;
+
+    if (commonAnode) {
+      gammatable[i] = 255 - x;
+    } 
+    else {
+      gammatable[i] = x;
+    }
+    //Serial.println(gammatable[i]);
+  }
+}
+
+/*
+ * SERVO SETUP SUBROUTINE
+ * Setup the pins for vacuum servo and z-axis servo
+ * Credit: TEAM 211
+ */
+void Servo_Setup(){
+  vacuumServo.attach(9);
+  zServo.attach(10);
+}
+
+/*
+ *  SET RGB LED OUTPUT
+ *  If RGB is Common Anode, values are to be inverted (255 is 0)
+ *  Credit: TEAM 211
+ */
+void RGBLED_Set(int red, int green, int blue){
+  analogWrite(redpin, red);
+  analogWrite(greenpin, green);
+  analogWrite(bluepin, blue); 
+}
+
+/*
+ * STEPPER MOTOR TEST SUBROUTINE
  * Functionality test 
  * Dependency: Adafruit_MotorShield.h
  * Credit: Adafruit Library
@@ -136,9 +252,8 @@ void POST_StepperMotor(){
   Stepper1->step(20, BACKWARD, MICROSTEP);
 }
 
-
 /*
- * RGB LED TEST ROUTINE
+ * RGB LED TEST SUBROUTINE
  * System check for stepper motor
  * Credit: TEAM 211
  */
@@ -173,76 +288,6 @@ void POST_RGBLED(){
 }
 
 /*
- *  SERIAL OUTPUT SETUP ROUTINE
- *  Setup routine for serial port
- *  Credit: Adafruit Library
- */
-void Serial_Setup(){
-  // Serial Port Initialization
-  Serial.begin(9600);
-  Serial.println("Serial Debugger Started");
-
-  // Color Sensor Serial Output (debugger)
-  if (tcs.begin()) {
-  Serial.println("Found sensor");
-  } else {
-    Serial.println("No TCS34725 found");
-    while (1);
-  }
-
-}
-
-/*
- *  RGBLED SETUP ROUTINE (pin and logic)
- *  Setup routine RGBLED using gamatable conversion
- *  Credit: Adafruit Library
- */
-void RGBLED_Setup(){
-
-  pinMode(redpin, OUTPUT);
-  pinMode(greenpin, OUTPUT);
-  pinMode(bluepin, OUTPUT);
-
-  // RGB Human-readable-Gama-conversion
-  for (int i=0; i<256; i++) {
-    float x = i;
-    x /= 255;
-    x = pow(x, 2.5);
-    x *= 255;
-
-    if (commonAnode) {
-      gammatable[i] = 255 - x;
-    } 
-    else {
-      gammatable[i] = x;
-    }
-    //Serial.println(gammatable[i]);
-  }
-}
-
-
-/*
- * SERVO SETUP SUBROUTINE
- * Setup the pins for vacuum servo and z-axis servo
- * Credit: TEAM 211
- */
-void Servo_Setup(){
-  vacuumServo.attach(9);
-  zServo.attach(10);
-}
-
-/*
- *  SET RGB LED OUTPUT
- *  If RGB is Common Anode, values are to be inverted (255 is 0)
- *  Credit: TEAM 211
- */
-void RGBLED_Set(int red, int green, int blue){
-  analogWrite(redpin, red);
-  analogWrite(greenpin, green);
-  analogWrite(bluepin, blue); 
-}
-
-/*
  *  TSC TO RGB OUTPUT
  *  Converts TSC sensor values to human-readable gamatable values
  *  (outputs the RGB vals to the RGBLED)
@@ -272,26 +317,15 @@ void TCStoRGB_Output(){
 }
 
 /*
- * STEPPER MOTOR SPEED (in RPM)
- * Change the stepper motor speed in RPM
- * Credit: Adafruit Library
- */
-void StepperSpeed_Set(int speed){
-  AFMS.begin(); // default 1.6KHz frq
-  Stepper1->setSpeed(speed);  // default is 10 rpm   
-}
-
-/*
  * CARRIAGE MOVE-LEFT SUBROUTINE
  * Logic for moving carriage to the left, with distance and speed params 
  * Dependency: Adafruit_MotorShield.h
  * Credit: TEAM 211
  */
-void Carriage_MoveLeft(int cm, int speed){
-  int stepsPerCm = 1; // TODO: Calibrate this as per Stepper motor
+void MoveLeft(int cm, int speed){
   int stepToCM = cm * stepsPerCm;
 
-  StepperSpeed_Set(speed);
+  Stepper1->setSpeed(speed);
   Stepper1->step(stepToCM, FORWARD, SINGLE); 
 }
 
@@ -301,10 +335,9 @@ void Carriage_MoveLeft(int cm, int speed){
  * Dependency: Adafruit_MotorShield.h
  * Credit: TEAM 211
  */
-void Carriage_MoveRight(int cm, int speed){
-  int stepsPerCm = 1; // TODO: Calibrate this as per Stepper motor
+void MoveRight(int cm, int speed){
   int stepToCM = cm * stepsPerCm;
 
-  StepperSpeed_Set(speed);
+  Stepper1->setSpeed(speed);
   Stepper1->step(stepToCM, BACKWARD, SINGLE); 
 }
