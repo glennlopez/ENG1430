@@ -6,22 +6,24 @@
 #include <Arduino.h>
 
 // GPIO Pin Definition
-#define redpin    3   // PWM GPIO
-#define greenpin  5   // PWM GPIO
-#define bluepin   6   // PWM GPIO
-#define vacuumpin 9
-#define zaxispin 10
-#define blockpin  7  
-#define returnpin 2   // ISR Capable GPIO
+#define redpin      3     // PWM GPIO           - RGBLED
+#define greenpin    5     // PWM GPIO           - RGBLED
+#define bluepin     6     // PWM GPIO           - RGBLED
+#define vacuumpin   10    // PWM GPIO           - Servo
+#define zaxispin    9     // PWM GPIO           - Servo
+#define blockpin    7     //                    - Microswitch
+#define returnpin   2     // ISR Capable GPIO   - Microswitch
 
 // Global Variables and Parametric Settings 
 #define commonAnode true    // Change as per RGBLED type
-int stepsPerCm = 1;         // CALIBRATION REQUIRED 
+int stepsPerCm = 1;         // Change as per stepper calibration
 bool serialDebugger = true; // Serial Debugger (SLOWS DOWN RUNTIME - NOT FOR PRODUCTION)
 
 byte gammatable[256];
 float red, green, blue;     // <Color Sensor Values>
 int blocks_homeState = 0;
+int Servo1_pos = 0;
+int Servo2_pos = 0;
 
 
 // Function Prototypes
@@ -43,6 +45,7 @@ void PushBack(int cm, int speed);
 void Retract(int cm, int speed);
 
 void HomeBlocks(int homeSpeed);
+void VacuumServo(int pos, int slowdown);
 
 
 // OOP Object Initializations
@@ -61,7 +64,7 @@ void setup() {
   //Stepper_Setup();
   //RGBLED_Setup();
   //ColorSensor_Setup();
-  //Servo_Setup();
+  Servo_Setup();
 
   /*-- Visual Power-On-Self-Test Routine --*/
   //POST_Steppers();  delay(300);
@@ -78,19 +81,26 @@ void loop() {
 
 // TODO: convert servo pos to forloop (with 15ms delay per degree)
 
-  
-/*
-   for (pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
-    // in steps of 1 degree
-    myservo.write(pos);              // tell servo to go to position in variable 'pos'
-    delay(15);                       // waits 15ms for the servo to reach the position
+  /*
+  for (Servo1_pos = 0; Servo1_pos <= 180; Servo1_pos += 1) {
+    Servo1.write(Servo1_pos);
+    delay(15);
   }
-*/
+  */
+
+  VacuumServo(45, 100);
+  delay(1000);
+  VacuumServo(0, 100);
+  delay(1000);
+  VacuumServo(180, 30);
+  delay(1000);
+  
+
+
 
   
 
 }
-
 
 
 
@@ -553,4 +563,32 @@ void HomeBlocks(int homeSpeed){
   }
   while(blocks_homeState == HIGH);
   Retract(800, 700);    
+}
+
+/*
+ * SERVO CONTROL FOR VACCUM
+ * Controls speed and pos of the vacuum servo
+ * Params: Position and delay rate per degree of movement
+ * Dependency: Servo.h
+ * Credit: TEAM 211
+ */ 
+void VacuumServo(int pos, int slowdown){
+  
+  while(Servo1_pos < pos){
+    Servo1_pos++;
+    Servo1.write(Servo1_pos);
+    delay(slowdown);
+    if (Servo1_pos == pos){
+      break;
+    }
+  }
+  
+  while(Servo1_pos > pos){
+    Servo1_pos--;
+    Servo1.write(Servo1_pos);
+    delay(slowdown);
+    if (Servo1_pos == pos){
+      break;
+    }
+  }
 }
