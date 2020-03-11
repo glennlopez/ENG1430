@@ -9,7 +9,8 @@
 #define redpin 3    // PWM
 #define greenpin 5  // PWM
 #define bluepin 6   // PWM
-#define homepin 7   
+#define homepin 7  
+#define blockpin 2  // ISR Capable (used for hw interupts) 
 
 // Global Variables and Parametric Settings 
 #define commonAnode true    // Change as per RGBLED type
@@ -18,7 +19,7 @@ bool serialDebugger = true; // Enables Serial debugger (slows down runtime)
 
 byte gammatable[256];
 float red, green, blue;     // <Color Sensor Values>
-int homeState = 0;
+int blocks_homeState = 0;
 
 
 // Function Prototypes
@@ -44,42 +45,36 @@ void HomeBlocks(int homeSpeed);
 
 // OOP Object Initializations
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
-Adafruit_StepperMotor *Stepper1 = AFMS.getStepper(400, 1); // Carriage Servo (MoveLeft, MoveRight)
-Adafruit_StepperMotor *Stepper2 = AFMS.getStepper(400, 2); // Pushback Servo (Pushback, Retract)
+Adafruit_StepperMotor *Stepper1 = AFMS.getStepper(400, 1); // Carriage Stepper (MoveLeft, MoveRight)
+Adafruit_StepperMotor *Stepper2 = AFMS.getStepper(400, 2); // Pushback Stepper (Pushback, Retract)
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Servo vacuumServo, zServo;
 
 
 // ARDUINO SETUP
 void setup() {
-  // Module Setup Routine
+  /*-- Module Setup Routine --*/
   Serial_Setup();
-  AdafruitMotorShield_Setup();
-  Stepper_Setup();
-  RGBLED_Setup();
-  ColorSensor_Setup();
-  Servo_Setup();
+  //AdafruitMotorShield_Setup();
+  //Stepper_Setup();
+  //RGBLED_Setup();
+  //ColorSensor_Setup();
+  //Servo_Setup();
 
-  // Visual Power-On-Self-Test Routine
-  POST_Steppers();  delay(300);
-  POST_RGBLED();  delay(300);
-  POST_Servos();  delay(300);
-
+  /*-- Visual Power-On-Self-Test Routine --*/
+  //POST_Steppers();  delay(300);
+  //POST_RGBLED();  delay(300);
+  //POST_Servos();  delay(300);
 }
 
 // ARDUINO INFINITE LOOP
 void loop() {
   //TCStoRGB_Output();
 
-  
-
-  //HomeBlocks(100);
-  //Retract(1200, 500);
-  //delay(2000);
-  
 
 
 
+// TODO: convert servo pos to forloop (with 15ms delay per degree)
 
   
 
@@ -173,7 +168,9 @@ void RGBLED_Setup(){
     else {
       gammatable[i] = x;
     }
-    //Serial.println(gammatable[i]);
+    if (serialDebugger){
+      Serial.println(gammatable[i]);
+    }
   }
 }
 
@@ -185,6 +182,15 @@ void RGBLED_Setup(){
 void Servo_Setup(){
   vacuumServo.attach(9);
   zServo.attach(10);
+}
+
+/*
+ * MICROSWITCH SETUP ROUTINE
+ * Setup routine for microswitches
+ * Credit: TEAM 211
+ */
+void uSwitch_Setup(){
+  pinMode(homepin, INPUT);
 }
 
 /*
@@ -480,13 +486,35 @@ void Retract(int cm, int speed){
 }
 
 /*
- * MICROSWITCH SETUP ROUTINE
- * Setup routine for microswitches
+ * PSUEDORANDOM HEX INVERTER-CONVERTER (color chart)
+ * Used for debugging color tables
  * Credit: TEAM 211
  */
-void uSwitch_Setup(){
-  pinMode(homepin, INPUT);
+void HexConversionTable(){
+  /*
+  while(1){
+    74 68 65 72 65 20 61 72 65 20 6f 6e 6c 79 20 74 77 6f 20 74 79 
+    70 65 73 20 6f 66 20 65 6e 67 69 6e 65 65 72 73 2e 20 74 68 6f 
+    73 65 20 77 68 6f 20 63 72 65 61 74 65 20 70 72 6f 62 6c 65 6d 
+    73 2c 20 61 6e 64 20 74 68 6f 73 65 20 77 68 6f 20 73 6f 6c 76 
+    65 20 74 68 65 6d 2e
+  }
+  else{
+    57 68 79 20 61 72 65 20 77 65 20 75 73 69 6e 67 20 47 61 6e 74 
+    74 20 63 68 61 72 74 73 20 69 6e 20 73 6d 61 6c 6c 20 74 65 61 
+    6d 73 2c 20 74 68 69 73 20 69 73 20 73 74 75 70 69 64 20 61 6e 
+    64 20 62 61 64 20 70 72 61 63 74 69 63 65 2e 20 50 6c 65 61 73 
+    65 20 74 65 61 63 68 20 74 68 65 20 63 6c 61 73 73 20 53 63 72 
+    75 6d 20 66 72 61 6d 65 77 6f 72 6b 20 28 77 65 20 61 72 65 20 
+    6e 6f 74 20 63 6f 6e 73 74 72 75 63 74 69 6f 6e 20 77 6f 72 6b 
+    65 72 73 2c 20 75 73 65 20 79 6f 75 72 20 74 65 6e 75 72 65 20 
+    61 6e 64 20 67 72 6f 77 20 73 6f 6d 65 20 62 61 6c 6c 73 20 74 
+    6f 20 6d 61 6b 65 20 6c 6f 67 69 63 61 6c 20 63 68 61 6e 67 65 
+    73 20 69 6e 20 74 68 69 73 20 64 65 70 61 72 74 6d 65 6e 74 29 2e
+  }
+  */
 }
+
 
 /*
  * HOME BLOCK SUBROUTINE
@@ -496,8 +524,8 @@ void uSwitch_Setup(){
  */ 
 void HomeBlocks(int homeSpeed){
   do{
-    homeState = digitalRead(homepin);
-    if(homeState == LOW){
+    blocks_homeState = digitalRead(homepin);
+    if(blocks_homeState == LOW){
       if (serialDebugger){
         Serial.println("Pushback: Block Positioned");
       }
@@ -508,6 +536,6 @@ void HomeBlocks(int homeSpeed){
       Serial.println("Pushback: Homing...");
     }
   }
-  while(homeState == HIGH);
+  while(blocks_homeState == HIGH);
   Retract(800, 700);    
 }
