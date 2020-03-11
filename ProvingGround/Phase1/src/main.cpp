@@ -17,13 +17,22 @@
 // Global Variables and Parametric Settings 
 #define commonAnode true    // Change as per RGBLED type
 int stepsPerCm = 1;         // Change as per stepper calibration
-bool serialDebugger = true; // Serial Debugger (SLOWS DOWN RUNTIME - NOT FOR PRODUCTION)
+bool serialDebugger = false; // Serial Debugger (SLOWS DOWN RUNTIME - NOT FOR PRODUCTION)
 
 byte gammatable[256];
-float red, green, blue;     // <Color Sensor Values>
+float red, green, blue;                         // <Color Sensor Values>
+uint16_t red_raw, green_raw, blue_raw, clear_raw;  // <Color Sensor Raw Values>
 int blocks_homeState = 0;
 int Servo1_pos = 0;
 int Servo2_pos = 0;
+
+
+// Color Block Samples @ 10cm
+int toleranceBlockRGB = 5;
+int yellowBlockRGB[] = {121, 81, 51};
+int purpleBlockRGB[] = {90, 86, 78};
+int redBlockRGB[] = {144, 61, 55};
+int greenBlockRGB[] = {68, 115, 69};
 
 
 // Function Prototypes
@@ -63,9 +72,9 @@ void setup() {
   Serial_Setup();
   //AdafruitMotorShield_Setup();
   //Stepper_Setup();
-  //RGBLED_Setup();
-  //ColorSensor_Setup();
-  Servo_Setup();
+  RGBLED_Setup();
+  ColorSensor_Setup();
+  //Servo_Setup();
 
   /*-- Visual Power-On-Self-Test Routine --*/
   //POST_Steppers();  delay(300);
@@ -73,30 +82,56 @@ void setup() {
   //POST_Servos();  delay(300);
 }
 
+
 // ARDUINO INFINITE LOOP
 void loop() {
-  //TCStoRGB_Output();
+
+  bool yellowR_Range = (int(red) >= yellowBlockRGB[0] - toleranceBlockRGB) && (int(red) <= yellowBlockRGB[0] + toleranceBlockRGB);
+  bool yellowG_Range = (int(green) >= yellowBlockRGB[1] - toleranceBlockRGB) && (int(green) <= yellowBlockRGB[1] + toleranceBlockRGB);
+  bool yellowB_Range = (int(blue) >= yellowBlockRGB[2] - toleranceBlockRGB) && (int(blue) <= yellowBlockRGB[2] + toleranceBlockRGB);
+
+  bool purpleR_Range = (int(red) >= purpleBlockRGB[0] - toleranceBlockRGB) && (int(red) <= purpleBlockRGB[0] + toleranceBlockRGB);
+  bool purpleG_Range = (int(green) >= purpleBlockRGB[1] - toleranceBlockRGB) && (int(green) <= purpleBlockRGB[1] + toleranceBlockRGB);
+  bool purpleB_Range = (int(blue) >= purpleBlockRGB[2] - toleranceBlockRGB) && (int(blue) <= purpleBlockRGB[2] + toleranceBlockRGB);
+
+  bool redR_Range = (int(red) >= redBlockRGB[0] - toleranceBlockRGB) && (int(red) <= redBlockRGB[0] + toleranceBlockRGB);
+  bool redG_Range = (int(green) >= redBlockRGB[1] - toleranceBlockRGB) && (int(green) <= redBlockRGB[1] + toleranceBlockRGB);
+  bool redB_Range = (int(blue) >= redBlockRGB[2] - toleranceBlockRGB) && (int(blue) <= redBlockRGB[2] + toleranceBlockRGB);
+
+  bool greenR_Range = (int(red) >= greenBlockRGB[0] - toleranceBlockRGB) && (int(red) <= greenBlockRGB[0] + toleranceBlockRGB);
+  bool greenG_Range = (int(green) >= greenBlockRGB[1] - toleranceBlockRGB) && (int(green) <= greenBlockRGB[1] + toleranceBlockRGB);
+  bool greenB_Range = (int(blue) >= greenBlockRGB[2] - toleranceBlockRGB) && (int(blue) <= greenBlockRGB[2] + toleranceBlockRGB);
 
 
-
-
-// TODO: convert servo pos to forloop (with 15ms delay per degree)
-
-  /*
-  for (Servo1_pos = 0; Servo1_pos <= 180; Servo1_pos += 1) {
-    Servo1.write(Servo1_pos);
-    delay(15);
+  if ( yellowR_Range && yellowG_Range && yellowB_Range ){
+    Serial.println("Yellow Detected");
   }
-  */
 
-  Z_AxisServo(45, 100);
-  delay(1000);
-  Z_AxisServo(0, 0);
-  delay(1000);
-  Z_AxisServo(180, 30);
-  delay(1000);
-  Z_AxisServo(90, 15);
-  delay(1000);
+  if ( purpleR_Range && purpleG_Range && purpleB_Range ){
+    Serial.println("Purple Detected");
+  }
+
+  if ( redR_Range && redG_Range && redB_Range ){
+    Serial.println("Red Detected");
+  }
+
+  if ( greenR_Range && greenG_Range && greenB_Range ){
+    Serial.println("Green Detected");
+  }
+
+  
+
+  TCStoRGB_Output();
+  //delay(2000);
+  Serial.print("\n");
+
+  
+
+
+
+
+
+
   
 
 
@@ -485,14 +520,25 @@ void TCStoRGB_Output(){
   // Read sensor input (takes 50ms to read)
   delay(60);  
   tcs.getRGB(&red, &green, &blue);
+  tcs.getRawData(&red_raw, &green_raw, &blue_raw, &clear_raw);
   tcs.setInterrupt(true);  // turn off LED
 
-  // Serial Output of RGB values
-  
-  Serial.print("R:\t"); Serial.print(int(red)); 
-  Serial.print("\tG:\t"); Serial.print(int(green)); 
-  Serial.print("\tB:\t"); Serial.print(int(blue));
-  Serial.print("\n");
+  if (serialDebugger){
+    // Serial Output of RGB values
+    Serial.print("R:\t"); Serial.print(int(red)); 
+    Serial.print("\tG:\t"); Serial.print(int(green)); 
+    Serial.print("\tB:\t"); Serial.print(int(blue));
+    Serial.print("\n");
+
+    // Serial Output of RGB RAW values
+    /*
+    Serial.print("r:\t"); Serial.print(int(red_raw)); 
+    Serial.print("\tg:\t"); Serial.print(int(green_raw)); 
+    Serial.print("\tb:\t"); Serial.print(int(blue_raw));
+    Serial.print("\tc:\t"); Serial.print(int(clear_raw));
+    Serial.print("\n");
+    */
+  }
   
 
   // Output sensor vals to LED
