@@ -43,9 +43,10 @@ void TCStoRGB_Output();
 void RGBLED_Set(int red, int green, int blue);
 void PushBack(int cm, int speed);
 void Retract(int cm, int speed);
+void VacuumServo(int pos, int slowdown);
+void Z_AxisServo(int pos, int slowdown);
 
 void HomeBlocks(int homeSpeed);
-void VacuumServo(int pos, int slowdown);
 
 
 // OOP Object Initializations
@@ -88,11 +89,13 @@ void loop() {
   }
   */
 
-  VacuumServo(45, 100);
+  Z_AxisServo(45, 100);
   delay(1000);
-  VacuumServo(0, 100);
+  Z_AxisServo(0, 0);
   delay(1000);
-  VacuumServo(180, 30);
+  Z_AxisServo(180, 30);
+  delay(1000);
+  Z_AxisServo(90, 15);
   delay(1000);
   
 
@@ -566,7 +569,7 @@ void HomeBlocks(int homeSpeed){
 }
 
 /*
- * SERVO CONTROL FOR VACCUM
+ * VACUUM SERVO CONTROL LOGIC
  * Controls speed and pos of the vacuum servo
  * Params: Position and delay rate per degree of movement
  * Dependency: Servo.h
@@ -588,6 +591,34 @@ void VacuumServo(int pos, int slowdown){
     Servo1.write(Servo1_pos);
     delay(slowdown);
     if (Servo1_pos == pos){
+      break;
+    }
+  }
+}
+
+/*
+ * Z-AXIS SERVO CONTROL LOGIC
+ * Controls speed and pos of the Z-AXIS servo
+ * Params: Position and delay rate per degree of movement
+ * Dependency: Servo.h
+ * Credit: TEAM 211
+ */ 
+void Z_AxisServo(int pos, int slowdown){
+  
+  while(Servo2_pos < pos){
+    Servo2_pos++;
+    Servo2.write(Servo2_pos);
+    delay(slowdown);
+    if (Servo2_pos == pos){
+      break;
+    }
+  }
+  
+  while(Servo2_pos > pos){
+    Servo2_pos--;
+    Servo2.write(Servo2_pos);
+    delay(slowdown);
+    if (Servo2_pos == pos){
       break;
     }
   }
