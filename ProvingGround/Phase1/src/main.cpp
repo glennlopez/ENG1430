@@ -27,12 +27,17 @@ int Servo1_pos = 0;
 int Servo2_pos = 0;
 
 
-// Color Block Samples @ 10cm
-int toleranceBlockRGB = 5;
-int yellowBlockRGB[] = {121, 81, 51};
-int purpleBlockRGB[] = {90, 86, 78};
-int redBlockRGB[] = {144, 61, 55};
-int greenBlockRGB[] = {68, 115, 69};
+/* 
+ * COLOR TABLE @ 10cm (indoor environment)
+ * Calibration: use function TCStoRGB_Output() in loop() to get sensor rgb values
+ * Adjust Tolerence as required
+ * Credit: TEAM 211
+ */
+int toleranceBlockRGB   = 5;
+int yellowBlockRGB[]    = {121, 81, 51};    // Known YELLOW RGB PARAM
+int purpleBlockRGB[]    = {90, 86, 78};     // Known PURPLE RGB PARAM
+int redBlockRGB[]       = {144, 61, 55};    // Known RED RGB PARAM
+int greenBlockRGB[]     = {68, 115, 69};    // Known GREEN RGB PARAM
 
 
 // Function Prototypes
