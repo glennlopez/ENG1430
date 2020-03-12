@@ -17,7 +17,7 @@
 // Global Variables and Parametric Settings 
 #define commonAnode true    // Change as per RGBLED type
 int stepsPerCm = 1;         // Change as per stepper calibration
-bool serialDebugger = false; // Serial Debugger (SLOWS DOWN RUNTIME - NOT FOR PRODUCTION)
+bool serialDebugger = true; // Serial Debugger (SLOWS DOWN RUNTIME - NOT FOR PRODUCTION)
 
 byte gammatable[256];
 float red, green, blue;                         // <Color Sensor Values>
@@ -28,16 +28,29 @@ int Servo2_pos = 0;
 
 
 /* 
- * COLOR TABLE @ 10cm (indoor environment)
+ * COLOR TABLE @ 10mm (indoor environment)
  * Calibration: use function TCStoRGB_Output() in loop() to get sensor rgb values
  * Adjust Tolerence as required
  * Credit: TEAM 211
  */
 int toleranceBlockRGB   = 5;
+/* BRIGHT ROOM (OFFICE)
 int yellowBlockRGB[]    = {121, 81, 51};    // Known YELLOW RGB PARAM
 int purpleBlockRGB[]    = {90, 86, 78};     // Known PURPLE RGB PARAM
 int redBlockRGB[]       = {144, 61, 55};    // Known RED RGB PARAM
 int greenBlockRGB[]     = {68, 115, 69};    // Known GREEN RGB PARAM
+*/
+
+/* DARK ROOM (BASEMENT) */
+int yellowBlockRGB[]    = {121, 82, 49};    // Known YELLOW RGB PARAM
+int purpleBlockRGB[]    = {81, 84, 86};     // Known PURPLE RGB PARAM
+int redBlockRGB[]       = {149, 54, 56};    // Known RED RGB PARAM
+int greenBlockRGB[]     = {61, 119, 70};    // Known GREEN RGB PARAM
+
+int yellowTileRGB[]     = {107, 93, 51};
+int redTileRGB[]        = {143, 62, 56};
+int purpleTilleRGB[]    = {98,74, 83};
+int greenTileRGB[]      = {77, 98, 76};
 
 
 // Function Prototypes
@@ -59,6 +72,7 @@ void PushBack(int cm, int speed);
 void Retract(int cm, int speed);
 void VacuumServo(int pos, int slowdown);
 void Z_AxisServo(int pos, int slowdown);
+void SerialOut_RGB();
 
 void HomeBlocks(int homeSpeed);
 int BlockColorAcquisition();
@@ -93,30 +107,11 @@ void setup() {
 void loop() {
 
   
+  // TODO: Logic for moving Sensor Servo up and down for color aquisition
 
-  
+  BlockColorAcquisition();
 
-  
-  if(BlockColorAcquisition() == 0){
-    Serial.println("Unknown Color");
-  }
-
-  if(BlockColorAcquisition() == 1){
-    Serial.println("Red Detected");
-  }
-
-  if(BlockColorAcquisition() == 2){
-    Serial.println("Green Detected");
-  }
-
-  if(BlockColorAcquisition() == 3){
-    Serial.println("Purple Detected");
-  }
-
-  if(BlockColorAcquisition() == 4){
-    Serial.println("Yellow Detected");
-  }
-
+ // TODO: TileColorAcquisition()
   
 
 
@@ -136,87 +131,7 @@ void loop() {
 
 
 
-/*
- *  COLOR ACQUISITION FOR BLOCKS
- *  Takes a known color from an array and compares with sensors RGB
- *  The Array with RGB should be calibrated
- *  Returns <int>
- *  Credit: TEAM 211
- */
-int BlockColorAcquisition(){
 
-  int colorCodeValue = 0;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
-
-  tcs.setInterrupt(false);  // turn on LED
-
-  // Read sensor input (takes 50ms to read)
-  delay(60);  
-  tcs.getRGB(&red, &green, &blue);
-  tcs.getRawData(&red_raw, &green_raw, &blue_raw, &clear_raw);
-  tcs.setInterrupt(true);  // turn off LED
-
-
-  // Yellow Truth Range
-  bool yellowR_Range = (int(red) >= yellowBlockRGB[0] - toleranceBlockRGB) && (int(red) <= yellowBlockRGB[0] + toleranceBlockRGB);
-  bool yellowG_Range = (int(green) >= yellowBlockRGB[1] - toleranceBlockRGB) && (int(green) <= yellowBlockRGB[1] + toleranceBlockRGB);
-  bool yellowB_Range = (int(blue) >= yellowBlockRGB[2] - toleranceBlockRGB) && (int(blue) <= yellowBlockRGB[2] + toleranceBlockRGB);
-
-  // Purple Truth Range
-  bool purpleR_Range = (int(red) >= purpleBlockRGB[0] - toleranceBlockRGB) && (int(red) <= purpleBlockRGB[0] + toleranceBlockRGB);
-  bool purpleG_Range = (int(green) >= purpleBlockRGB[1] - toleranceBlockRGB) && (int(green) <= purpleBlockRGB[1] + toleranceBlockRGB);
-  bool purpleB_Range = (int(blue) >= purpleBlockRGB[2] - toleranceBlockRGB) && (int(blue) <= purpleBlockRGB[2] + toleranceBlockRGB);
-
-  // Red Truth Range
-  bool redR_Range = (int(red) >= redBlockRGB[0] - toleranceBlockRGB) && (int(red) <= redBlockRGB[0] + toleranceBlockRGB);
-  bool redG_Range = (int(green) >= redBlockRGB[1] - toleranceBlockRGB) && (int(green) <= redBlockRGB[1] + toleranceBlockRGB);
-  bool redB_Range = (int(blue) >= redBlockRGB[2] - toleranceBlockRGB) && (int(blue) <= redBlockRGB[2] + toleranceBlockRGB);
-
-  // Green Truth Range
-  bool greenR_Range = (int(red) >= greenBlockRGB[0] - toleranceBlockRGB) && (int(red) <= greenBlockRGB[0] + toleranceBlockRGB);
-  bool greenG_Range = (int(green) >= greenBlockRGB[1] - toleranceBlockRGB) && (int(green) <= greenBlockRGB[1] + toleranceBlockRGB);
-  bool greenB_Range = (int(blue) >= greenBlockRGB[2] - toleranceBlockRGB) && (int(blue) <= greenBlockRGB[2] + toleranceBlockRGB);
-
-  // Test for Red
-  if ( redR_Range && redG_Range && redB_Range ){
-    if (serialDebugger){
-      Serial.println("Red Detected");
-    }
-    colorCodeValue = 1;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
-  }
-
-  // Test for Green
-  if ( greenR_Range && greenG_Range && greenB_Range ){
-    if (serialDebugger){
-      Serial.println("Green Detected");
-    }
-    colorCodeValue = 2;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
-  }
-
-  // Test for Purple
-  if ( purpleR_Range && purpleG_Range && purpleB_Range ){
-    if (serialDebugger){
-      Serial.println("Purple Detected");
-    }
-    colorCodeValue = 3;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
-  }
-
-
-  // Test for Yellow
-  if ( yellowR_Range && yellowG_Range && yellowB_Range ){
-    if (serialDebugger){
-      Serial.println("Yellow Detected");
-    }
-    colorCodeValue = 4;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
-  }
-
-  // Output sensor vals to LED
-  analogWrite(redpin, gammatable[(int)red]);
-  analogWrite(greenpin, gammatable[(int)green]);
-  analogWrite(bluepin, gammatable[(int)blue]);
-
-  return colorCodeValue;
-
-}
 
 
 
@@ -591,7 +506,7 @@ void TCStoRGB_Output(){
   // Read sensor input (takes 50ms to read)
   delay(60);  
   tcs.getRGB(&red, &green, &blue);
-  tcs.getRawData(&red_raw, &green_raw, &blue_raw, &clear_raw);
+  //tcs.getRawData(&red_raw, &green_raw, &blue_raw, &clear_raw);
   tcs.setInterrupt(true);  // turn off LED
 
   if (serialDebugger){
@@ -739,4 +654,102 @@ void Z_AxisServo(int pos, int slowdown){
       break;
     }
   }
+}
+
+/*
+ *  COLOR ACQUISITION FOR BLOCKS
+ *  Takes a known color from an array and compares with sensors RGB
+ *  The Array with RGB should be calibrated
+ *  Returns <int>
+ *  Credit: TEAM 211
+ */
+int BlockColorAcquisition(){
+  int colorCodeValue = 0;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+
+  
+  tcs.setInterrupt(false);  // turn on LED
+
+  // Read sensor input (takes 50ms to read)
+  delay(60);  
+  tcs.getRGB(&red, &green, &blue);
+  //tcs.getRawData(&red_raw, &green_raw, &blue_raw, &clear_raw);
+  tcs.setInterrupt(true);  // turn off LED
+
+
+  // Yellow Truth Range
+  bool yellowR_Range = (int(red) >= yellowBlockRGB[0] - toleranceBlockRGB) && (int(red) <= yellowBlockRGB[0] + toleranceBlockRGB);
+  bool yellowG_Range = (int(green) >= yellowBlockRGB[1] - toleranceBlockRGB) && (int(green) <= yellowBlockRGB[1] + toleranceBlockRGB);
+  bool yellowB_Range = (int(blue) >= yellowBlockRGB[2] - toleranceBlockRGB) && (int(blue) <= yellowBlockRGB[2] + toleranceBlockRGB);
+
+  // Purple Truth Range
+  bool purpleR_Range = (int(red) >= purpleBlockRGB[0] - toleranceBlockRGB) && (int(red) <= purpleBlockRGB[0] + toleranceBlockRGB);
+  bool purpleG_Range = (int(green) >= purpleBlockRGB[1] - toleranceBlockRGB) && (int(green) <= purpleBlockRGB[1] + toleranceBlockRGB);
+  bool purpleB_Range = (int(blue) >= purpleBlockRGB[2] - toleranceBlockRGB) && (int(blue) <= purpleBlockRGB[2] + toleranceBlockRGB);
+
+  // Red Truth Range
+  bool redR_Range = (int(red) >= redBlockRGB[0] - toleranceBlockRGB) && (int(red) <= redBlockRGB[0] + toleranceBlockRGB);
+  bool redG_Range = (int(green) >= redBlockRGB[1] - toleranceBlockRGB) && (int(green) <= redBlockRGB[1] + toleranceBlockRGB);
+  bool redB_Range = (int(blue) >= redBlockRGB[2] - toleranceBlockRGB) && (int(blue) <= redBlockRGB[2] + toleranceBlockRGB);
+
+  // Green Truth Range
+  bool greenR_Range = (int(red) >= greenBlockRGB[0] - toleranceBlockRGB) && (int(red) <= greenBlockRGB[0] + toleranceBlockRGB);
+  bool greenG_Range = (int(green) >= greenBlockRGB[1] - toleranceBlockRGB) && (int(green) <= greenBlockRGB[1] + toleranceBlockRGB);
+  bool greenB_Range = (int(blue) >= greenBlockRGB[2] - toleranceBlockRGB) && (int(blue) <= greenBlockRGB[2] + toleranceBlockRGB);
+
+  // Test for Red
+  if ( redR_Range && redG_Range && redB_Range ){
+    if (serialDebugger){
+      Serial.println("Red Detected");
+      SerialOut_RGB();
+    }
+    colorCodeValue = 1;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+  }
+
+  // Test for Green
+  if ( greenR_Range && greenG_Range && greenB_Range ){
+    if (serialDebugger){
+      Serial.println("Green Detected");
+      SerialOut_RGB();
+    }
+    colorCodeValue = 2;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+  }
+
+  // Test for Purple
+  if ( purpleR_Range && purpleG_Range && purpleB_Range ){
+    if (serialDebugger){
+      Serial.println("Purple Detected");
+      SerialOut_RGB();
+    }
+    colorCodeValue = 3;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+  }
+
+  // Test for Yellow
+  if ( yellowR_Range && yellowG_Range && yellowB_Range ){
+    if (serialDebugger){
+      Serial.println("Yellow Detected");
+      SerialOut_RGB();
+    }
+    colorCodeValue = 4;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+  }
+
+  // Output sensor vals to LED
+  analogWrite(redpin, gammatable[(int)red]);
+  analogWrite(greenpin, gammatable[(int)green]);
+  analogWrite(bluepin, gammatable[(int)blue]);
+
+  return colorCodeValue;
+
+}
+
+/*
+ *  DISPLAY RGB VALUE 
+ *  Prints rgb values to serial terminal
+ *  Credit: TEAM 211
+ */
+void SerialOut_RGB(){
+
+  Serial.print("R:\t"); Serial.print(int(red)); 
+  Serial.print("\tG:\t"); Serial.print(int(green)); 
+  Serial.print("\tB:\t"); Serial.print(int(blue));
+  Serial.print("\n");
 }
