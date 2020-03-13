@@ -28,7 +28,8 @@ int stepsPerCm = 1;         // Change as per stepper calibration
 bool serialDebugger = true; // Serial Debugger (SLOWS DOWN RUNTIME - NOT FOR PRODUCTION)
 
 byte gammatable[256];
-float red, green, blue;                            // <Color Sensor Values>
+float red, green, blue;  // <Color Sensor Values>
+int BlockColor_Scanned = 0;
 //uint16_t red_raw, green_raw, blue_raw, clear_raw;  // <Color Sensor Raw Values>                             
 
 int blocks_homeState = 0;
@@ -204,49 +205,81 @@ void loop() {
   END OF TEST TILE COLOR POSITION QCQUISITION LOGIC  */
 
 
-  // TODO: GOTO LOGIC
+
+
+
+
+
+  // COLOR ACQUISITION SIMULATION
+  tileData[0][1] = 2;   // Green
+  tileData[1][1] = 3;   // Purple
+  tileData[2][1] = 1;   // Red
+  tileData[3][1] = 4;   // Yellow
+
+    // DEBUG TILE OUTPUT
+  if (serialDebugger){
+      
+      Serial.println();
+      Serial.print("First Location: "); Serial.println(tileData[0][0]);
+      Serial.print("Color Code: "); Serial.println(tileData[0][1]);
+      Serial.println();
+
+      Serial.println();
+      Serial.print("Second Location: "); Serial.println(tileData[1][0]);
+      Serial.print("Color Code: "); Serial.println(tileData[1][1]);
+      Serial.println();
+
+      Serial.println();
+      Serial.print("Third Location: "); Serial.println(tileData[2][0]);
+      Serial.print("Color Code: "); Serial.println(tileData[2][1]);
+      Serial.println();
+
+      Serial.println();
+      Serial.print("Forth Location: "); Serial.println(tileData[3][0]);
+      Serial.print("Color Code: "); Serial.println(tileData[3][1]);
+      Serial.println();
+  }  
+  delay(1000);
+
+
+
+
+
+
+  
+
+
+ 
+
+  BlockColor_Scanned = BlockColorAcquisition();
   debugloop();
-
-  
-  
-
-
-
-
-
-
-  
-
-
-
-  
-
+  delay(1000);
 }
 
 void debugloop(){
-  GoTo(400, 100);
-  delay(2000);  // loop delay
 
-  GoTo(300, 100);
-  delay(2000);  // loop delay
+  // DROP BLOCK OFF
+  // assumes block has been scanned and picked up
+  // BUGS: Why does it go to 0 when there are no blocks detected
+  int i = 0;
+  while(1){
+    if(BlockColor_Scanned == tileData[i][1]){
+      GoTo(tileData[i][0], 100);
+      break;
+    }
+    i++;
+    if(i > 4){
+      i == 0;
+      break;
+    }
+  }
 
-  GoTo(100, 100);
-  delay(2000);  // loop delay
 
-  GoTo(0, 100);
-  delay(2000);  // loop delay
 
-  GoTo(50, 100);
-  delay(2000);  // loop delay
 
-  GoTo(200, 100);
-  delay(2000);  // loop delay
 
-  GoTo(190, 100);
-  delay(2000);  // loop delay
 
-  GoTo(0, 100);
-  delay(8000);  // loop delay
+
 }
 
 
