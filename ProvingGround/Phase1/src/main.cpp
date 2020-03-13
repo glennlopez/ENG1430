@@ -14,13 +14,17 @@
 #define blockpin    7     //                    - Microswitch (Blocks)
 #define returnpin   2     // ISR Capable GPIO   - Microswitch (Carriage)
 
+// Tile Location (Measured in mm)
+#define FirstTile_pos   100
+#define SecondTile_pos  200
+#define ThirdTile_pos   300
+#define ForthTile_pos   400
+
+// Change as per RGBLED type
+#define commonAnode true 
+
 // Global Variables and Parametric Settings 
-#define commonAnode true    // Change as per RGBLED type
 int stepsPerCm = 1;         // Change as per stepper calibration
-int FirstTile_pos = 100;    // Position of First Tile in mm
-int SecondTile_pos = 200;   // Position of Second Tile in mm
-int ThirdTile_pos = 300;    // Position of Third Tile in mm
-int ForthTile_pos = 400;    // Position of Forth Tile in mm
 bool serialDebugger = true; // Serial Debugger (SLOWS DOWN RUNTIME - NOT FOR PRODUCTION)
 
 byte gammatable[256];
@@ -64,7 +68,7 @@ int redTileRGB[]        = {151, 59, 52};
 int greenTileRGB[]      = {79, 100, 74};
 */
 
-// Tile Color and Location Storage (DO NOT EDIT BELOW)
+// (DO NOT EDIT) - Stores Tile Information
 int tileData[4][2] = {
   {FirstTile_pos, 0},
   {SecondTile_pos, 0},
@@ -96,6 +100,7 @@ void TCS_SerialOut();
 void HomeBlocks(int homeSpeed);
 int BlockColorAcquisition();
 int TileColorAcquisition();
+void TileColorPosAcquisition();
 
 
 // OOP Object Initializations
@@ -177,52 +182,12 @@ void loop() {
 
 
 
-
-
-
-
-
-
-
-
+  // TileColorPosAcquisition();
   // RECORD TILE DATA COLOR AND COORD
   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+  TileColorPosAcquisition();
 
-  // First Tile
-  if( (Carriage_pos == tileData[0][0]) && (TileColorAcquisition() != 0)){
-    tileData[0][1] = TileColorAcquisition();    // store colorcode value
-
-    if (serialDebugger){
-       Serial.println("First Tile: Color Recorded");
-    }
-  }
-
-  // Second Tile
-  if( (Carriage_pos == tileData[1][0]) && (TileColorAcquisition() != 0)){
-    tileData[1][1] = TileColorAcquisition();    // store colorcode value
-
-    if (serialDebugger){
-       Serial.println("Second Tile: Color Recorded");
-    }
-  }
-
-  // Third Tile
-  if( (Carriage_pos == tileData[2][0]) && (TileColorAcquisition() != 0)){
-    tileData[2][1] = TileColorAcquisition();    // store colorcode value
-
-    if (serialDebugger){
-       Serial.println("Third Tile: Color Recorded");
-    }
-  }
-
-  // Forth Tile
-  if( (Carriage_pos == tileData[3][0]) && (TileColorAcquisition() != 0)){
-    tileData[3][1] = TileColorAcquisition();    // store colorcode value
-
-    if (serialDebugger){
-       Serial.println("Fourth Tile: Color Recorded");
-    }
-  }
+  
 
 
   // DEBUG TILE OUTPUT
@@ -971,4 +936,49 @@ void TCS_SerialOut(){
   Serial.print("\tG:\t"); Serial.print(int(green)); 
   Serial.print("\tB:\t"); Serial.print(int(blue));
   Serial.print("\n");
+}
+
+/*
+ * RECORD TILE COLOR POSITION 
+ * Takes converted color sensor value (color code) and puts that value into a database array
+ * Credit: TEAM 211
+ */
+void TileColorPosAcquisition(){
+  //0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+
+  // First Tile
+  if( (Carriage_pos == tileData[0][0]) && (TileColorAcquisition() != 0)){
+    tileData[0][1] = TileColorAcquisition();    // store colorcode value
+
+    if (serialDebugger){
+       Serial.println("First Tile: Color Recorded");
+    }
+  }
+
+  // Second Tile
+  if( (Carriage_pos == tileData[1][0]) && (TileColorAcquisition() != 0)){
+    tileData[1][1] = TileColorAcquisition();    // store colorcode value
+
+    if (serialDebugger){
+       Serial.println("Second Tile: Color Recorded");
+    }
+  }
+
+  // Third Tile
+  if( (Carriage_pos == tileData[2][0]) && (TileColorAcquisition() != 0)){
+    tileData[2][1] = TileColorAcquisition();    // store colorcode value
+
+    if (serialDebugger){
+       Serial.println("Third Tile: Color Recorded");
+    }
+  }
+
+  // Forth Tile
+  if( (Carriage_pos == tileData[3][0]) && (TileColorAcquisition() != 0)){
+    tileData[3][1] = TileColorAcquisition();    // store colorcode value
+
+    if (serialDebugger){
+       Serial.println("Fourth Tile: Color Recorded");
+    }
+  }
 }
