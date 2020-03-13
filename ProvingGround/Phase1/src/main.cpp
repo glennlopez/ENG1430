@@ -14,7 +14,7 @@
 #define blockpin    7     //                    - Microswitch (Blocks)
 #define returnpin   2     // ISR Capable GPIO   - Microswitch (Carriage)
 
-// Tile Location (Measured in mm)
+// Significant Parametric X-AXIS Locations
 #define FirstTile_pos   100
 #define SecondTile_pos  200
 #define ThirdTile_pos   300
@@ -91,16 +91,20 @@ void POST_Servos();
 
 void TCStoRGB_Output();
 void RGBLED_Set(int red, int green, int blue);
-void PushBack(int cm, int speed);
-void Retract(int cm, int speed);
 void VacuumServo(int pos, int slowdown);
 void Z_AxisServo(int pos, int slowdown);
 void TCS_SerialOut();
+
+void PushBack(int cm, int speed);
+void Retract(int cm, int speed);
+void GoTo(int cm, int speed);
 
 void HomeBlocks(int homeSpeed);
 int BlockColorAcquisition();
 int TileColorAcquisition();
 void TileColorPosAcquisition();
+
+void debugloop();
 
 
 // OOP Object Initializations
@@ -121,6 +125,8 @@ void setup() {
   ColorSensor_Setup();
   Servo_Setup();
 
+  stepsPerCm = 2; // DEBUG
+
   /*-- Visual Power-On-Self-Test Routine --*/
   /*
   POST_Steppers();  delay(300);
@@ -139,26 +145,8 @@ void loop() {
   TileColorAcquisition();
   */
 
-  /*
-  if(BlockColorAcquisition() == 1){
-    Servo1.write(180);
-    delay(5000);
-    Servo1.write(0);
-    delay(2000);
-  }
-
-  if(TileColorAcquisition() == 2){
-    Servo1.write(180);
-    delay(1000);
-    Servo1.write(0);
-    delay(1000);
-  }
-  */
-  
-
-
-  
-  
+ 
+  /* TEST TILE COLOR POSITION QCQUISITION LOGIC 
   delay(2000); // debug delay
   //TCStoRGB_Output(); //DEBUG
   //TileColorAcquisition();
@@ -213,7 +201,13 @@ void loop() {
       Serial.print("Color Code: "); Serial.println(tileData[3][1]);
       Serial.println();
   }  
+  END OF TEST TILE COLOR POSITION QCQUISITION LOGIC  */
 
+
+  // TODO: GOTO LOGIC
+  debugloop();
+
+  
   
 
 
@@ -228,6 +222,33 @@ void loop() {
   
 
 }
+
+void debugloop(){
+  GoTo(400, 100);
+  delay(2000);  // loop delay
+
+  GoTo(300, 100);
+  delay(2000);  // loop delay
+
+  GoTo(100, 100);
+  delay(2000);  // loop delay
+
+  GoTo(0, 100);
+  delay(2000);  // loop delay
+
+  GoTo(50, 100);
+  delay(2000);  // loop delay
+
+  GoTo(200, 100);
+  delay(2000);  // loop delay
+
+  GoTo(190, 100);
+  delay(2000);  // loop delay
+
+  GoTo(0, 100);
+  delay(8000);  // loop delay
+}
+
 
 
 
@@ -981,4 +1002,41 @@ void TileColorPosAcquisition(){
        Serial.println("Fourth Tile: Color Recorded");
     }
   }
+}
+
+/*
+ *  X-CARRIAGE GO-TO LOGIC
+ *  Moves the X-CARRIAGE using cartesian coords
+ *  Credit: TEAM 211
+ */
+void GoTo(int new_pos, int speed){
+  Stepper1->setSpeed(speed);
+  int diff_pos = 0; // diffrence from old pos to new pos
+
+  // new position is greater than current pos | 400 - 0 
+  if(new_pos > Carriage_pos){
+    diff_pos = new_pos - Carriage_pos;          // ie: 400 - 0 = 400
+
+    if (serialDebugger){
+      Serial.print("Current Pos: "); Serial.print(Carriage_pos); Serial.print(" | "); Serial.print("GoTo: "); Serial.print(new_pos); Serial.print(" | Diff: "); Serial.print(diff_pos);
+      Serial.print("\n");
+    }
+
+    Stepper1->step(diff_pos * stepsPerCm, FORWARD, DOUBLE);  // <- 400 
+    Carriage_pos = new_pos;
+  }
+
+  // new position is lessthan than current pos | 300 - 400
+  if(new_pos < Carriage_pos){
+    diff_pos = Carriage_pos - new_pos; // ie: 400 - 300 = 100
+
+    if (serialDebugger){
+      Serial.print("Current Pos: "); Serial.print(Carriage_pos); Serial.print(" | "); Serial.print("GoTo: "); Serial.print(new_pos); Serial.print(" | Diff: -"); Serial.print(diff_pos);
+      Serial.print("\n");
+    }
+
+    Stepper1->step(diff_pos * stepsPerCm, BACKWARD, DOUBLE);  // 100 ->
+    Carriage_pos = new_pos;
+  }
+
 }
