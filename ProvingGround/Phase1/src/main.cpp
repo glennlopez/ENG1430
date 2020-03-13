@@ -11,20 +11,26 @@
 #define bluepin     6     // PWM GPIO           - RGBLED
 #define vacuumpin   10    // PWM GPIO           - Servo
 #define zaxispin    9     // PWM GPIO           - Servo
-#define blockpin    7     //                    - Microswitch
-#define returnpin   2     // ISR Capable GPIO   - Microswitch
+#define blockpin    7     //                    - Microswitch (Blocks)
+#define returnpin   2     // ISR Capable GPIO   - Microswitch (Carriage)
 
 // Global Variables and Parametric Settings 
 #define commonAnode true    // Change as per RGBLED type
 int stepsPerCm = 1;         // Change as per stepper calibration
+int FirstTile_pos = 100;    // Position of First Tile in mm
+int SecondTile_pos = 200;   // Position of Second Tile in mm
+int ThirdTile_pos = 300;    // Position of Third Tile in mm
+int ForthTile_pos = 400;    // Position of Forth Tile in mm
 bool serialDebugger = true; // Serial Debugger (SLOWS DOWN RUNTIME - NOT FOR PRODUCTION)
 
 byte gammatable[256];
-float red, green, blue;                         // <Color Sensor Values>
-uint16_t red_raw, green_raw, blue_raw, clear_raw;  // <Color Sensor Raw Values>
+float red, green, blue;                            // <Color Sensor Values>
+//uint16_t red_raw, green_raw, blue_raw, clear_raw;  // <Color Sensor Raw Values>                             
+
 int blocks_homeState = 0;
 int Servo1_pos = 0;
 int Servo2_pos = 0;
+int Carriage_pos = 0;
 
 
 /* 
@@ -34,24 +40,37 @@ int Servo2_pos = 0;
  * Credit: TEAM 211
  */
 int toleranceBlockRGB   = 5;
-/* BRIGHT ROOM (OFFICE)
-int yellowBlockRGB[]    = {121, 81, 51};    // Known YELLOW RGB PARAM
-int purpleBlockRGB[]    = {90, 86, 78};     // Known PURPLE RGB PARAM
-int redBlockRGB[]       = {144, 61, 55};    // Known RED RGB PARAM
-int greenBlockRGB[]     = {68, 115, 69};    // Known GREEN RGB PARAM
-*/
+/* BRIGHT ROOM (OFFICE) */
+int yellowBlockRGB[]    = {122, 83, 49};    // Known YELLOW RGB PARAM
+int purpleBlockRGB[]    = {86, 85, 85};     // Known PURPLE RGB PARAM
+int redBlockRGB[]       = {152, 55, 55};    // Known RED RGB PARAM
+int greenBlockRGB[]     = {60, 124, 68};    // Known GREEN RGB PARAM
 
-/* DARK ROOM (BASEMENT) */
+int yellowTileRGB[]     = {117, 92, 44};
+int purpleTileRGB[]     = {113, 68, 78};
+int redTileRGB[]        = {164, 55, 45};
+int greenTileRGB[]      = {87, 103, 67};
+
+
+/* DARK ROOM (BASEMENT) 
 int yellowBlockRGB[]    = {121, 82, 49};    // Known YELLOW RGB PARAM
 int purpleBlockRGB[]    = {81, 84, 86};     // Known PURPLE RGB PARAM
 int redBlockRGB[]       = {149, 54, 56};    // Known RED RGB PARAM
 int greenBlockRGB[]     = {61, 119, 70};    // Known GREEN RGB PARAM
 
-int yellowTileRGB[]     = {107, 93, 51};
-int redTileRGB[]        = {143, 62, 56};
-int purpleTilleRGB[]    = {98,74, 83};
-int greenTileRGB[]      = {77, 98, 76};
+int yellowTileRGB[]     = {109, 93, 48};
+int purpleTileRGB[]    = {104, 71, 83};
+int redTileRGB[]        = {151, 59, 52};
+int greenTileRGB[]      = {79, 100, 74};
+*/
 
+// Tile Color and Location Storage (DO NOT EDIT BELOW)
+int tileData[4][2] = {
+  {FirstTile_pos, 0},
+  {SecondTile_pos, 0},
+  {ThirdTile_pos, 0},
+  {ForthTile_pos, 0}
+};  
 
 // Function Prototypes
 void Serial_Setup();
@@ -72,10 +91,11 @@ void PushBack(int cm, int speed);
 void Retract(int cm, int speed);
 void VacuumServo(int pos, int slowdown);
 void Z_AxisServo(int pos, int slowdown);
-void SerialOut_RGB();
+void TCS_SerialOut();
 
 void HomeBlocks(int homeSpeed);
 int BlockColorAcquisition();
+int TileColorAcquisition();
 
 
 // OOP Object Initializations
@@ -90,28 +110,145 @@ Servo Servo1, Servo2;
 void setup() {
   /*-- Module Setup Routine --*/
   Serial_Setup();
-  //AdafruitMotorShield_Setup();
-  //Stepper_Setup();
+  AdafruitMotorShield_Setup();
+  Stepper_Setup();
   RGBLED_Setup();
   ColorSensor_Setup();
-  //Servo_Setup();
+  Servo_Setup();
 
   /*-- Visual Power-On-Self-Test Routine --*/
-  //POST_Steppers();  delay(300);
-  //POST_RGBLED();  delay(300);
-  //POST_Servos();  delay(300);
+  /*
+  POST_Steppers();  delay(300);
+  POST_RGBLED();  delay(300);
+  POST_Servos();  delay(300);
+  */
 }
 
 
 // ARDUINO INFINITE LOOP
 void loop() {
 
-  
-  // TODO: Logic for moving Sensor Servo up and down for color aquisition
-
+  /*
+  TCStoRGB_Output();
   BlockColorAcquisition();
+  TileColorAcquisition();
+  */
 
- // TODO: TileColorAcquisition()
+  /*
+  if(BlockColorAcquisition() == 1){
+    Servo1.write(180);
+    delay(5000);
+    Servo1.write(0);
+    delay(2000);
+  }
+
+  if(TileColorAcquisition() == 2){
+    Servo1.write(180);
+    delay(1000);
+    Servo1.write(0);
+    delay(1000);
+  }
+  */
+  
+
+
+  
+  
+  delay(2000); // debug delay
+  //TCStoRGB_Output(); //DEBUG
+  //TileColorAcquisition();
+
+  //DEBUG - simulate carriage movement
+  if (BlockColorAcquisition() == 1){
+    Carriage_pos = 100; 
+  }
+
+  if (BlockColorAcquisition() == 2){
+    Carriage_pos = 200; 
+  }
+
+  if (BlockColorAcquisition() == 3){
+    Carriage_pos = 300; 
+  }
+
+  if (BlockColorAcquisition() == 4){
+    Carriage_pos = 400; 
+  }
+
+
+
+
+
+
+
+
+
+
+
+  // RECORD TILE DATA COLOR AND COORD
+  // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+
+  // First Tile
+  if( (Carriage_pos == tileData[0][0]) && (TileColorAcquisition() != 0)){
+    tileData[0][1] = TileColorAcquisition();    // store colorcode value
+
+    if (serialDebugger){
+       Serial.println("First Tile: Color Recorded");
+    }
+  }
+
+  // Second Tile
+  if( (Carriage_pos == tileData[1][0]) && (TileColorAcquisition() != 0)){
+    tileData[1][1] = TileColorAcquisition();    // store colorcode value
+
+    if (serialDebugger){
+       Serial.println("Second Tile: Color Recorded");
+    }
+  }
+
+  // Third Tile
+  if( (Carriage_pos == tileData[2][0]) && (TileColorAcquisition() != 0)){
+    tileData[2][1] = TileColorAcquisition();    // store colorcode value
+
+    if (serialDebugger){
+       Serial.println("Third Tile: Color Recorded");
+    }
+  }
+
+  // Forth Tile
+  if( (Carriage_pos == tileData[3][0]) && (TileColorAcquisition() != 0)){
+    tileData[3][1] = TileColorAcquisition();    // store colorcode value
+
+    if (serialDebugger){
+       Serial.println("Fourth Tile: Color Recorded");
+    }
+  }
+
+
+  // DEBUG TILE OUTPUT
+  if (serialDebugger){
+      
+      Serial.println();
+      Serial.print("First Location: "); Serial.println(tileData[0][0]);
+      Serial.print("Color Code: "); Serial.println(tileData[0][1]);
+      Serial.println();
+
+      Serial.println();
+      Serial.print("Second Location: "); Serial.println(tileData[1][0]);
+      Serial.print("Color Code: "); Serial.println(tileData[1][1]);
+      Serial.println();
+
+      Serial.println();
+      Serial.print("Third Location: "); Serial.println(tileData[2][0]);
+      Serial.print("Color Code: "); Serial.println(tileData[2][1]);
+      Serial.println();
+
+      Serial.println();
+      Serial.print("Forth Location: "); Serial.println(tileData[3][0]);
+      Serial.print("Color Code: "); Serial.println(tileData[3][1]);
+      Serial.println();
+  }  
+
   
 
 
@@ -657,7 +794,7 @@ void Z_AxisServo(int pos, int slowdown){
 }
 
 /*
- *  COLOR ACQUISITION FOR BLOCKS
+ *  COLOR ACQUISITION FOR BLOCK
  *  Takes a known color from an array and compares with sensors RGB
  *  The Array with RGB should be calibrated
  *  Returns <int>
@@ -665,8 +802,6 @@ void Z_AxisServo(int pos, int slowdown){
  */
 int BlockColorAcquisition(){
   int colorCodeValue = 0;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
-
-  
   tcs.setInterrupt(false);  // turn on LED
 
   // Read sensor input (takes 50ms to read)
@@ -699,8 +834,8 @@ int BlockColorAcquisition(){
   // Test for Red
   if ( redR_Range && redG_Range && redB_Range ){
     if (serialDebugger){
-      Serial.println("Red Detected");
-      SerialOut_RGB();
+      Serial.println("Red Block Detected");
+      TCS_SerialOut();
     }
     colorCodeValue = 1;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
   }
@@ -708,8 +843,8 @@ int BlockColorAcquisition(){
   // Test for Green
   if ( greenR_Range && greenG_Range && greenB_Range ){
     if (serialDebugger){
-      Serial.println("Green Detected");
-      SerialOut_RGB();
+      Serial.println("Green Block Detected");
+      TCS_SerialOut();
     }
     colorCodeValue = 2;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
   }
@@ -717,8 +852,8 @@ int BlockColorAcquisition(){
   // Test for Purple
   if ( purpleR_Range && purpleG_Range && purpleB_Range ){
     if (serialDebugger){
-      Serial.println("Purple Detected");
-      SerialOut_RGB();
+      Serial.println("Purple Block Detected");
+      TCS_SerialOut();
     }
     colorCodeValue = 3;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
   }
@@ -726,8 +861,91 @@ int BlockColorAcquisition(){
   // Test for Yellow
   if ( yellowR_Range && yellowG_Range && yellowB_Range ){
     if (serialDebugger){
-      Serial.println("Yellow Detected");
-      SerialOut_RGB();
+      Serial.println("Yellow Block Detected");
+      TCS_SerialOut();
+    }
+    colorCodeValue = 4;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+  }
+
+  // Output sensor vals to LED
+  analogWrite(redpin, gammatable[(int)red]);
+  analogWrite(greenpin, gammatable[(int)green]);
+  analogWrite(bluepin, gammatable[(int)blue]);
+
+  return colorCodeValue;
+
+}
+
+/*
+ *  COLOR ACQUISITION FOR TILE
+ *  Takes a known color from an array and compares with sensors RGB
+ *  The Array with RGB should be calibrated
+ *  Returns <int>
+ *  Credit: TEAM 211
+ */
+int TileColorAcquisition(){
+  int colorCodeValue = 0;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+  tcs.setInterrupt(false);  // turn on LED
+
+  // Read sensor input (takes 50ms to read)
+  delay(60);  
+  tcs.getRGB(&red, &green, &blue);
+  //tcs.getRawData(&red_raw, &green_raw, &blue_raw, &clear_raw);
+  tcs.setInterrupt(true);  // turn off LED
+
+
+  // Yellow Truth Range
+  bool yellowR_Range = (int(red) >= yellowTileRGB[0] - toleranceBlockRGB) && (int(red) <= yellowTileRGB[0] + toleranceBlockRGB);
+  bool yellowG_Range = (int(green) >= yellowTileRGB[1] - toleranceBlockRGB) && (int(green) <= yellowTileRGB[1] + toleranceBlockRGB);
+  bool yellowB_Range = (int(blue) >= yellowTileRGB[2] - toleranceBlockRGB) && (int(blue) <= yellowTileRGB[2] + toleranceBlockRGB);
+
+  // Purple Truth Range
+  bool purpleR_Range = (int(red) >= purpleTileRGB[0] - toleranceBlockRGB) && (int(red) <= purpleTileRGB[0] + toleranceBlockRGB);
+  bool purpleG_Range = (int(green) >= purpleTileRGB[1] - toleranceBlockRGB) && (int(green) <= purpleTileRGB[1] + toleranceBlockRGB);
+  bool purpleB_Range = (int(blue) >= purpleTileRGB[2] - toleranceBlockRGB) && (int(blue) <= purpleTileRGB[2] + toleranceBlockRGB);
+
+  // Red Truth Range
+  bool redR_Range = (int(red) >= redTileRGB[0] - toleranceBlockRGB) && (int(red) <= redTileRGB[0] + toleranceBlockRGB);
+  bool redG_Range = (int(green) >= redTileRGB[1] - toleranceBlockRGB) && (int(green) <= redTileRGB[1] + toleranceBlockRGB);
+  bool redB_Range = (int(blue) >= redTileRGB[2] - toleranceBlockRGB) && (int(blue) <= redTileRGB[2] + toleranceBlockRGB);
+
+  // Green Truth Range
+  bool greenR_Range = (int(red) >= greenTileRGB[0] - toleranceBlockRGB) && (int(red) <= greenTileRGB[0] + toleranceBlockRGB);
+  bool greenG_Range = (int(green) >= greenTileRGB[1] - toleranceBlockRGB) && (int(green) <= greenTileRGB[1] + toleranceBlockRGB);
+  bool greenB_Range = (int(blue) >= greenTileRGB[2] - toleranceBlockRGB) && (int(blue) <= greenTileRGB[2] + toleranceBlockRGB);
+
+  // Test for Red
+  if ( redR_Range && redG_Range && redB_Range ){
+    if (serialDebugger){
+      Serial.println("Red Tile Detected");
+      TCS_SerialOut();
+    }
+    colorCodeValue = 1;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+  }
+
+  // Test for Green
+  if ( greenR_Range && greenG_Range && greenB_Range ){
+    if (serialDebugger){
+      Serial.println("Green Tile Detected");
+      TCS_SerialOut();
+    }
+    colorCodeValue = 2;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+  }
+
+  // Test for Purple
+  if ( purpleR_Range && purpleG_Range && purpleB_Range ){
+    if (serialDebugger){
+      Serial.println("Purple Tile Detected");
+      TCS_SerialOut();
+    }
+    colorCodeValue = 3;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
+  }
+
+  // Test for Yellow
+  if ( yellowR_Range && yellowG_Range && yellowB_Range ){
+    if (serialDebugger){
+      Serial.println("Yellow Tile Detected");
+      TCS_SerialOut();
     }
     colorCodeValue = 4;   // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
   }
@@ -744,9 +962,10 @@ int BlockColorAcquisition(){
 /*
  *  DISPLAY RGB VALUE 
  *  Prints rgb values to serial terminal
+ *  Requires: TCStoRGB_Output() function
  *  Credit: TEAM 211
  */
-void SerialOut_RGB(){
+void TCS_SerialOut(){
 
   Serial.print("R:\t"); Serial.print(int(red)); 
   Serial.print("\tG:\t"); Serial.print(int(green)); 
