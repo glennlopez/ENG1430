@@ -24,7 +24,7 @@
 #define commonAnode true 
 
 // Global Variables and Parametric Settings 
-int stepsPerCm = 1;         // Change as per stepper calibration
+float stepsPerMM = 5.5;         // Change as per stepper calibration
 bool serialDebugger = true; // Serial Debugger (SLOWS DOWN RUNTIME - NOT FOR PRODUCTION)
 
 byte gammatable[256];
@@ -33,6 +33,7 @@ int BlockColor_Scanned = 0;
 //uint16_t red_raw, green_raw, blue_raw, clear_raw;  // <Color Sensor Raw Values>                             
 
 int blocks_homeState = 0;
+int carriage_homeState = 0;
 int Servo1_pos = 0;
 int Servo2_pos = 0;
 int Carriage_pos = 0;
@@ -96,11 +97,14 @@ void VacuumServo(int pos, int slowdown);
 void Z_AxisServo(int pos, int slowdown);
 void TCS_SerialOut();
 
+void HomeCarriage();
 void PushBack(int cm, int speed);
 void Retract(int cm, int speed);
+void HomeCarriage(int homeSpeed);
 void GoTo(int cm, int speed);
 
-void HomeBlocks(int homeSpeed);
+void GoTo_BlockTileMatch();
+
 int BlockColorAcquisition();
 int TileColorAcquisition();
 void TileColorPosAcquisition();
@@ -115,6 +119,9 @@ Adafruit_StepperMotor *Stepper2 = AFMS.getStepper(400, 2); // Pushback Stepper (
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Servo Servo1, Servo2;
 
+bool done = false;  // Loops into an infinite subroutine when cube sorter job is done
+bool TileNotScanned = false;
+
 
 // ARDUINO SETUP
 void setup() {
@@ -126,19 +133,65 @@ void setup() {
   ColorSensor_Setup();
   Servo_Setup();
 
-  stepsPerCm = 2; // DEBUG
-
   /*-- Visual Power-On-Self-Test Routine --*/
-  /*
   POST_Steppers();  delay(300);
-  POST_RGBLED();  delay(300);
+  //POST_RGBLED();  delay(300);
   POST_Servos();  delay(300);
-  */
+
+
+}
+
+// TODO: acquire tile color coords
+void ScanTiles(){
+  // Scan Tile 1, record color
+  // Scan Tile 2, record color
+  // Scan Tile 3, record color
+  // Scan Tile 4, record color
+
+  // Done Scanning - skip step in loop() subroutine
+  TileNotScanned = 1;
+
+}
+
+// TODO:  
+void PickAndPlace(){
+  // push cubes home
+  // x-carriage: go to last cube coord
+  // scan cube color
+  // pick cube up
+  // x-carriage: go to matching tile color
+
 }
 
 
 // ARDUINO INFINITE LOOP
 void loop() {
+  /*
+   * WHERE IS ALL YOUR CODE?!
+   * Oh Hai! This is called "clean" code. Each Function is focused, un-poluted, 
+   * and only takes 1 second to understand what loop() should be doing.  
+   * If you need to understand how each subroutine works, simply follow the
+   * bread-crumbs (function calls inside each function call). 
+   */
+  
+  if(TileNotScanned){
+    ScanTiles();  
+  }
+
+  PickAndPlace();
+
+  while(done);{ // Finished Sorting
+    HomeCarriage();
+  }
+
+
+
+
+
+
+
+
+
 
   /*
   TCStoRGB_Output();
@@ -206,7 +259,7 @@ void loop() {
 
 
 
-
+  /*
 
 
 
@@ -241,46 +294,27 @@ void loop() {
   }  
   delay(1000);
 
-
-
-
-
-
-  
-
-
- 
-
   BlockColor_Scanned = BlockColorAcquisition();
+  GoTo_BlockTileMatch();
+
+  */
+
   debugloop();
-  delay(1000);
+  //delay(1000);
+
+
 }
+
 
 void debugloop(){
-
-  // DROP BLOCK OFF
-  // assumes block has been scanned and picked up
-  // BUGS: Why does it go to 0 when there are no blocks detected
-  int i = 0;
-  while(1){
-    if(BlockColor_Scanned == tileData[i][1]){
-      GoTo(tileData[i][0], 100);
-      break;
-    }
-    i++;
-    if(i > 4){
-      i == 0;
-      break;
-    }
-  }
-
-
-
-
-
-
+  HomeCarriage();
+  delay(2000);
+  GoTo(350,1000);
+  delay(2000);
+  GoTo(10,400);
 
 }
+
 
 
 
@@ -431,6 +465,9 @@ void RGBLED_Set(int red, int green, int blue){
  * Credit: Adafruit Library
  */
 void POST_Steppers(){
+  GoTo(10,400);
+  HomeCarriage();
+  GoTo(100,400);
   if (serialDebugger){
     Serial.println("Stepper Motor 1: Single Coil");
   }
@@ -495,6 +532,8 @@ void POST_Steppers(){
   //Serial.println("Microstep steps");
   Stepper2->step(20, FORWARD, MICROSTEP); 
   Stepper2->step(20, BACKWARD, MICROSTEP);
+
+  GoTo(10, 600);
 }
 
 /*
@@ -696,7 +735,7 @@ void TCStoRGB_Output(){
  * Credit: TEAM 211
  */
 void PushBack(int cm, int speed){
-  int stepToCM = cm * stepsPerCm;
+  int stepToCM = cm * stepsPerMM;
 
   Stepper2->setSpeed(speed);
   Stepper2->step(stepToCM, FORWARD, DOUBLE); 
@@ -709,7 +748,7 @@ void PushBack(int cm, int speed){
  * Credit: TEAM 211
  */
 void Retract(int cm, int speed){
-  int stepToCM = cm * stepsPerCm;
+  int stepToCM = cm * stepsPerMM;
 
   Stepper2->setSpeed(speed);
   Stepper2->step(stepToCM, BACKWARD, DOUBLE); 
@@ -1038,7 +1077,7 @@ void TileColorPosAcquisition(){
 }
 
 /*
- *  X-CARRIAGE GO-TO LOGIC
+ *  X-AXIS: GO-TO (coord, speed)
  *  Moves the X-CARRIAGE using cartesian coords
  *  Credit: TEAM 211
  */
@@ -1055,7 +1094,7 @@ void GoTo(int new_pos, int speed){
       Serial.print("\n");
     }
 
-    Stepper1->step(diff_pos * stepsPerCm, FORWARD, DOUBLE);  // <- 400 
+    Stepper1->step(diff_pos * stepsPerMM, BACKWARD, DOUBLE);  // <- 400 
     Carriage_pos = new_pos;
   }
 
@@ -1068,8 +1107,48 @@ void GoTo(int new_pos, int speed){
       Serial.print("\n");
     }
 
-    Stepper1->step(diff_pos * stepsPerCm, BACKWARD, DOUBLE);  // 100 ->
+    Stepper1->step(diff_pos * stepsPerMM, FORWARD, DOUBLE);  // 100 ->
     Carriage_pos = new_pos;
   }
 
+}
+
+/*  X-AXIS: MOVE COLORED BLOCK TO MATCHING TILE
+ *  Moves x-carriage to 
+ *  Function Assumes Block has been scanned and picked up already
+ *  (func does not scan block, pick up block or drop block)
+ *  Credit: TEAM 211
+ */
+void GoTo_BlockTileMatch(){
+  for(int i = 0; i <= 4; i++){
+    if(BlockColor_Scanned == tileData[i][1]){
+      GoTo(tileData[i][0], 100);
+    }
+  }
+}
+
+/*
+ * HOME BLOCK SUBROUTINE
+ * Logic for moving a block to be picked up at a known pos
+ * Dependency: Adafruit_MotorShield.h
+ * Credit: TEAM 211
+ */ 
+void HomeCarriage(){
+  do{
+    carriage_homeState = digitalRead(returnpin);
+    if(carriage_homeState == LOW){
+      Carriage_pos = 0; // set pos marker to 0 - home
+      Stepper1->release(); // release motor current
+      
+      if (serialDebugger){
+        Serial.println("Carriage: Home Position");
+      }
+      break;
+    }
+    Stepper1->step(1 * stepsPerMM, FORWARD, MICROSTEP);
+    if (serialDebugger){
+      Serial.println("Carriage: Homing...");
+    }
+  }
+  while(carriage_homeState == HIGH); 
 }
