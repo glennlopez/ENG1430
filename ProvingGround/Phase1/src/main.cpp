@@ -15,10 +15,10 @@
 #define returnpin   2     // ISR Capable GPIO   - Microswitch (Carriage)
 
 // Significant Parametric X-AXIS Locations
-#define FirstTile_pos   100
-#define SecondTile_pos  200
-#define ThirdTile_pos   300
-#define ForthTile_pos   400
+#define FirstTile_pos   15
+#define SecondTile_pos  65
+#define ThirdTile_pos   115
+#define ForthTile_pos   165
 
 // Change as per RGBLED type
 #define commonAnode true 
@@ -46,7 +46,7 @@ int Carriage_pos = 0;
  * Credit: TEAM 211
  */
 int toleranceBlockRGB   = 5;
-/* BRIGHT ROOM (OFFICE) */
+/* BRIGHT ROOM (OFFICE) 
 int yellowBlockRGB[]    = {122, 83, 49};    // Known YELLOW RGB PARAM
 int purpleBlockRGB[]    = {86, 85, 85};     // Known PURPLE RGB PARAM
 int redBlockRGB[]       = {152, 55, 55};    // Known RED RGB PARAM
@@ -56,19 +56,20 @@ int yellowTileRGB[]     = {117, 92, 44};
 int purpleTileRGB[]     = {113, 68, 78};
 int redTileRGB[]        = {164, 55, 45};
 int greenTileRGB[]      = {87, 103, 67};
+*/
 
 
-/* DARK ROOM (BASEMENT) 
+/* DARK ROOM (BASEMENT) */
 int yellowBlockRGB[]    = {121, 82, 49};    // Known YELLOW RGB PARAM
 int purpleBlockRGB[]    = {81, 84, 86};     // Known PURPLE RGB PARAM
 int redBlockRGB[]       = {149, 54, 56};    // Known RED RGB PARAM
 int greenBlockRGB[]     = {61, 119, 70};    // Known GREEN RGB PARAM
 
-int yellowTileRGB[]     = {109, 93, 48};
-int purpleTileRGB[]    = {104, 71, 83};
-int redTileRGB[]        = {151, 59, 52};
-int greenTileRGB[]      = {79, 100, 74};
-*/
+int yellowTileRGB[]     = {113, 94, 41};
+int purpleTileRGB[]    = {106, 68, 82};
+int redTileRGB[]        = {161, 55, 45};
+int greenTileRGB[]      = {78, 106, 69};
+
 
 // (DO NOT EDIT) - Stores Tile Information
 int tileData[4][2] = {
@@ -120,7 +121,7 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS3472
 Servo Servo1, Servo2;
 
 bool done = false;  // Loops into an infinite subroutine when cube sorter job is done
-bool TileNotScanned = false;
+bool TileNotScanned = true;
 
 
 // ARDUINO SETUP
@@ -134,22 +135,39 @@ void setup() {
   Servo_Setup();
 
   /*-- Visual Power-On-Self-Test Routine --*/
-  POST_Steppers();  delay(300);
+  //POST_Steppers();  delay(300);
   //POST_RGBLED();  delay(300);
-  POST_Servos();  delay(300);
+  //POST_Servos();  delay(300);
 
 
 }
 
 // TODO: acquire tile color coords
 void ScanTiles(){
-  // Scan Tile 1, record color
-  // Scan Tile 2, record color
-  // Scan Tile 3, record color
-  // Scan Tile 4, record color
+  int scanDelay = 10;
 
-  // Done Scanning - skip step in loop() subroutine
-  TileNotScanned = 1;
+  GoTo(FirstTile_pos,300);
+  tileData[0][1] = TileColorAcquisition();
+  TCStoRGB_Output(); //debug
+  delay(scanDelay);
+
+  GoTo(SecondTile_pos,300);
+  tileData[1][1] = TileColorAcquisition();
+  TCStoRGB_Output(); //debug
+  delay(scanDelay);
+
+  GoTo(ThirdTile_pos,300);
+  tileData[2][1] = TileColorAcquisition();
+  TCStoRGB_Output(); //debug
+  delay(scanDelay);
+  
+  GoTo(ForthTile_pos,300);
+  tileData[3][1] = TileColorAcquisition();
+  TCStoRGB_Output(); //debug
+  delay(scanDelay);
+
+  // Set TileNotScanned to false when done scanning
+  TileNotScanned = false;
 
 }
 
@@ -161,11 +179,14 @@ void PickAndPlace(){
   // pick cube up
   // x-carriage: go to matching tile color
 
+  // check to see if no more cube (done if no more cube)
+
 }
 
 
 // ARDUINO INFINITE LOOP
 void loop() {
+
   /*
    * WHERE IS ALL YOUR CODE?!
    * Oh Hai! This is called "clean" code. Each Function is focused, un-poluted, 
@@ -174,6 +195,7 @@ void loop() {
    * bread-crumbs (function calls inside each function call). 
    */
   
+    /*
   if(TileNotScanned){
     ScanTiles();  
   }
@@ -183,8 +205,7 @@ void loop() {
   while(done);{ // Finished Sorting
     HomeCarriage();
   }
-
-
+  */
 
 
 
@@ -299,19 +320,65 @@ void loop() {
 
   */
 
-  debugloop();
+  //debugloop();
   //delay(1000);
+
+  /*
+  Z_AxisServo(45, 20);
+  delay(1000);
+  Z_AxisServo(80, 20);
+  delay(1000);
+  */
+  
+
+  //GoTo(350, 900);
+
+  //BlockColorAcquisition();
+
+  debugloop();
+
 
 
 }
 
 
 void debugloop(){
+
+  delay(3000);
   HomeCarriage();
-  delay(2000);
-  GoTo(350,1000);
-  delay(2000);
-  GoTo(10,400);
+
+
+  // SCAN BLOCKS
+  ScanTiles();
+
+
+
+
+  // GO TO BLOCK -- THEN GO TO DROP OFF LOCATION
+  GoTo(350, 400);
+
+  if(BlockColorAcquisition() == tileData[0][1]){
+    GoTo(tileData[0][0], 400);
+  }
+  if(BlockColorAcquisition() == tileData[1][1]){
+    GoTo(tileData[1][0], 400);
+  }
+  if(BlockColorAcquisition() == tileData[2][1]){
+    GoTo(tileData[2][0], 400);
+  }
+  if(BlockColorAcquisition() == tileData[3][1]){
+    GoTo(tileData[3][0], 400);
+  }
+
+
+  delay(1000);
+
+
+
+  // go home faster
+  GoTo(10, 400);
+
+  
 
 }
 
