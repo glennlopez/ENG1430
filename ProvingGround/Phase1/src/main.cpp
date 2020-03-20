@@ -20,55 +20,63 @@
 #define ThirdTile_pos   115
 #define ForthTile_pos   165
 
+#define CubeScan_pos 351
+#define CubePickUp_pos 323
+
+
 // Change as per RGBLED type
 #define commonAnode true 
 
 // Global Variables and Parametric Settings 
 float stepsPerMM = 5.5;         // Change as per stepper calibration
-bool serialDebugger = true; // Serial Debugger (SLOWS DOWN RUNTIME - NOT FOR PRODUCTION)
+bool serialDebugger = false; // Serial Debugger (SLOWS DOWN RUNTIME - NOT FOR PRODUCTION)
 
 byte gammatable[256];
 float red, green, blue;  // <Color Sensor Values>
-int BlockColor_Scanned = 0;
-//uint16_t red_raw, green_raw, blue_raw, clear_raw;  // <Color Sensor Raw Values>                             
+int BlockColor_Scanned = 0;                           
 
 int blocks_homeState = 0;
 int carriage_homeState = 0;
 int Servo1_pos = 0;
 int Servo2_pos = 0;
 int Carriage_pos = 0;
+int BlockHomingStation_pos = 255;
+
+bool done = false;  
+bool TileNotScanned = true;
 
 
 /* 
- * COLOR TABLE @ 10mm (indoor environment)
+ * COLOR TABLES
  * Calibration: use function TCStoRGB_Output() in loop() to get sensor rgb values
  * Adjust Tolerence as required
  * Credit: TEAM 211
  */
-int toleranceBlockRGB   = 5;
+int toleranceBlockRGB   = 6;
 /* BRIGHT ROOM (OFFICE) 
-int yellowBlockRGB[]    = {122, 83, 49};    // Known YELLOW RGB PARAM
-int purpleBlockRGB[]    = {86, 85, 85};     // Known PURPLE RGB PARAM
-int redBlockRGB[]       = {152, 55, 55};    // Known RED RGB PARAM
-int greenBlockRGB[]     = {60, 124, 68};    // Known GREEN RGB PARAM
+int yellowBlockRGB[]    = {121, 83, 45};    // Known YELLOW RGB PARAM
+int purpleBlockRGB[]    = {85, 85, 82};     // Known PURPLE RGB PARAM
+int redBlockRGB[]       = {155, 54, 51};    // Known RED RGB PARAM
+int greenBlockRGB[]     = {59, 123, 66};    // Known GREEN RGB PARAM
 
 int yellowTileRGB[]     = {117, 92, 44};
 int purpleTileRGB[]     = {113, 68, 78};
 int redTileRGB[]        = {164, 55, 45};
-int greenTileRGB[]      = {87, 103, 67};
+int greenTileRGB[]      = {86, 104, 66};
 */
 
 
 /* DARK ROOM (BASEMENT) */
 int yellowBlockRGB[]    = {121, 82, 49};    // Known YELLOW RGB PARAM
 int purpleBlockRGB[]    = {81, 84, 86};     // Known PURPLE RGB PARAM
-int redBlockRGB[]       = {149, 54, 56};    // Known RED RGB PARAM
-int greenBlockRGB[]     = {61, 119, 70};    // Known GREEN RGB PARAM
+int redBlockRGB[]       = {155, 52, 50};    // Known RED RGB PARAM
+int greenBlockRGB[]     = {61, 123, 64};    // Known GREEN RGB PARAM
 
 int yellowTileRGB[]     = {113, 94, 41};
 int purpleTileRGB[]    = {106, 68, 82};
 int redTileRGB[]        = {161, 55, 45};
 int greenTileRGB[]      = {78, 106, 69};
+
 
 
 // (DO NOT EDIT) - Stores Tile Information
@@ -99,12 +107,11 @@ void Z_AxisServo(int pos, int slowdown);
 void TCS_SerialOut();
 
 void HomeCarriage();
-void PushBack(int cm, int speed);
-void Retract(int cm, int speed);
 void HomeCarriage(int homeSpeed);
 void GoTo(int cm, int speed);
-
 void GoTo_BlockTileMatch();
+//void PushBack(int cm, int speed); // OBSOLETE
+//void Retract(int cm, int speed);  // OBSOLETE
 
 int BlockColorAcquisition();
 int TileColorAcquisition();
@@ -120,8 +127,6 @@ Adafruit_StepperMotor *Stepper2 = AFMS.getStepper(400, 2); // Pushback Stepper (
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Servo Servo1, Servo2;
 
-bool done = false;  // Loops into an infinite subroutine when cube sorter job is done
-bool TileNotScanned = true;
 
 
 // ARDUINO SETUP
@@ -133,18 +138,25 @@ void setup() {
   RGBLED_Setup();
   ColorSensor_Setup();
   Servo_Setup();
+  uSwitch_Setup();
 
   /*-- Visual Power-On-Self-Test Routine --*/
   //POST_Steppers();  delay(300);
   //POST_RGBLED();  delay(300);
   //POST_Servos();  delay(300);
 
+  /*-- Pre Start Setup Routine --*/
+  Z_AxisServo(15, 20);  // Rise Vacuum
+  HomeCarriage(400);       // Home X-Carriage
+  done = false;  
+  TileNotScanned = true;
+
 
 }
 
-// TODO: acquire tile color coords
+// DONE
 void ScanTiles(){
-  int scanDelay = 10;
+  int scanDelay = 100;
 
   GoTo(FirstTile_pos,300);
   tileData[0][1] = TileColorAcquisition();
@@ -168,217 +180,152 @@ void ScanTiles(){
 
   // Set TileNotScanned to false when done scanning
   TileNotScanned = false;
+}
 
+void ScanBlock(){
+  delay(300);
+  TCS_SerialOut();
+  BlockColor_Scanned = BlockColorAcquisition();
+}
+
+
+
+// DONE
+void BlockDropOff(){
+  if(BlockColor_Scanned == tileData[0][1]){
+    GoTo(tileData[0][0], 1300);
+  }
+  if(BlockColor_Scanned == tileData[1][1]){
+    GoTo(tileData[1][0], 1300);
+  }
+  if(BlockColor_Scanned == tileData[2][1]){
+    GoTo(tileData[2][0], 1300);
+  }
+  if(BlockColor_Scanned == tileData[3][1]){
+    GoTo(tileData[3][0], 1300);
+  }
+}
+
+// TODO: pick cube up
+void PickUpCube(){
+  Z_AxisServo(80, 10);  // Lower Vacuum
+  delay(50);
+
+  VacuumServo(180, 5);  // Activate Suction
+
+  Z_AxisServo(12, 10);  // Rise Vacuum
+  delay(50);
+}
+
+// TODO: drop cubes off
+void DropOffCube(){
+  GoTo(Carriage_pos - 15, 900);
+  Z_AxisServo(77, 20);  // Lower Vacuum
+  delay(50);
+
+  VacuumServo(0, 1);    // De-Activate Suction
+  Z_AxisServo(15, 20);  // Rise Vacuum
 }
 
 // TODO:  
 void PickAndPlace(){
-  // push cubes home
-  // x-carriage: go to last cube coord
-  // scan cube color
-  // pick cube up
-  // x-carriage: go to matching tile color
 
-  // check to see if no more cube (done if no more cube)
+  // GO TO BLOCK SCAN POINT
+  GoTo(CubeScan_pos, 900);
+
+  // SCAN CUBE
+  ScanBlock();
+  //TCS_SerialOut(); // debug
+
+  // re-position vacuum 
+  GoTo(CubePickUp_pos,700); 
+
+  // pick up cube
+  PickUpCube();
+
+  // GO TO DROP-OFF LOCATION
+  BlockDropOff();
+
+  // DROP CUBE
+  DropOffCube();
+
+  // Zero Cube
+  debugloop();
 
 }
+
+// Push blocks to pick-up pos
+void HomeBlocks(){
+  do{
+    blocks_homeState = digitalRead(blockpin);
+    if(blocks_homeState == LOW){
+      if (serialDebugger){
+        Serial.println("Carriage: Blocks in position");
+      }
+      break;
+    }
+    Stepper1->step(1 * stepsPerMM, BACKWARD, MICROSTEP);
+    Carriage_pos = Carriage_pos + (1);
+    if (serialDebugger){
+      Serial.println("Carriage: Pushing Blocks");
+    }
+  }
+  while(blocks_homeState == HIGH); 
+}
+
+
+
+
 
 
 // ARDUINO INFINITE LOOP
 void loop() {
-
-  /*
-   * WHERE IS ALL YOUR CODE?!
-   * Oh Hai! This is called "clean" code. Each Function is focused, un-poluted, 
-   * and only takes 1 second to understand what loop() should be doing.  
-   * If you need to understand how each subroutine works, simply follow the
-   * bread-crumbs (function calls inside each function call). 
-   */
   
-    /*
   if(TileNotScanned){
-    ScanTiles();  
+    ScanTiles();
   }
 
   PickAndPlace();
 
-  while(done);{ // Finished Sorting
+  while(done){ // Finished Sorting
     HomeCarriage();
   }
-  */
-
-
-
-
-
-
-
-
+  
+  
+  
   /*
+  //HomeCarriage(700);
+  //GoTo(CubeScan_pos, 400);
+  //delay(7000);
   TCStoRGB_Output();
   BlockColorAcquisition();
   TileColorAcquisition();
   */
-
- 
-  /* TEST TILE COLOR POSITION QCQUISITION LOGIC 
-  delay(2000); // debug delay
-  //TCStoRGB_Output(); //DEBUG
-  //TileColorAcquisition();
-
-  //DEBUG - simulate carriage movement
-  if (BlockColorAcquisition() == 1){
-    Carriage_pos = 100; 
-  }
-
-  if (BlockColorAcquisition() == 2){
-    Carriage_pos = 200; 
-  }
-
-  if (BlockColorAcquisition() == 3){
-    Carriage_pos = 300; 
-  }
-
-  if (BlockColorAcquisition() == 4){
-    Carriage_pos = 400; 
-  }
-
-
-
-  // TileColorPosAcquisition();
-  // RECORD TILE DATA COLOR AND COORD
-  // 0 - none, 1 - red, 2 - green, 3 - purple, 4 - yellow
-  TileColorPosAcquisition();
-
+  
   
 
 
-  // DEBUG TILE OUTPUT
-  if (serialDebugger){
-      
-      Serial.println();
-      Serial.print("First Location: "); Serial.println(tileData[0][0]);
-      Serial.print("Color Code: "); Serial.println(tileData[0][1]);
-      Serial.println();
-
-      Serial.println();
-      Serial.print("Second Location: "); Serial.println(tileData[1][0]);
-      Serial.print("Color Code: "); Serial.println(tileData[1][1]);
-      Serial.println();
-
-      Serial.println();
-      Serial.print("Third Location: "); Serial.println(tileData[2][0]);
-      Serial.print("Color Code: "); Serial.println(tileData[2][1]);
-      Serial.println();
-
-      Serial.println();
-      Serial.print("Forth Location: "); Serial.println(tileData[3][0]);
-      Serial.print("Color Code: "); Serial.println(tileData[3][1]);
-      Serial.println();
-  }  
-  END OF TEST TILE COLOR POSITION QCQUISITION LOGIC  */
-
-
-
-  /*
-
-
-
-  // COLOR ACQUISITION SIMULATION
-  tileData[0][1] = 2;   // Green
-  tileData[1][1] = 3;   // Purple
-  tileData[2][1] = 1;   // Red
-  tileData[3][1] = 4;   // Yellow
-
-    // DEBUG TILE OUTPUT
-  if (serialDebugger){
-      
-      Serial.println();
-      Serial.print("First Location: "); Serial.println(tileData[0][0]);
-      Serial.print("Color Code: "); Serial.println(tileData[0][1]);
-      Serial.println();
-
-      Serial.println();
-      Serial.print("Second Location: "); Serial.println(tileData[1][0]);
-      Serial.print("Color Code: "); Serial.println(tileData[1][1]);
-      Serial.println();
-
-      Serial.println();
-      Serial.print("Third Location: "); Serial.println(tileData[2][0]);
-      Serial.print("Color Code: "); Serial.println(tileData[2][1]);
-      Serial.println();
-
-      Serial.println();
-      Serial.print("Forth Location: "); Serial.println(tileData[3][0]);
-      Serial.print("Color Code: "); Serial.println(tileData[3][1]);
-      Serial.println();
-  }  
-  delay(1000);
-
-  BlockColor_Scanned = BlockColorAcquisition();
-  GoTo_BlockTileMatch();
-
-  */
-
-  //debugloop();
-  //delay(1000);
-
-  /*
-  Z_AxisServo(45, 20);
-  delay(1000);
-  Z_AxisServo(80, 20);
-  delay(1000);
-  */
   
-
-  //GoTo(350, 900);
-
-  //BlockColorAcquisition();
-
-  debugloop();
-
-
 
 }
 
 
 void debugloop(){
-
-  delay(3000);
-  HomeCarriage();
+  // PUT DEBUG CODE HERE
 
 
-  // SCAN BLOCKS
-  ScanTiles();
+  GoTo(BlockHomingStation_pos, 600);    // go to block homing station
+  Z_AxisServo(95, 20); // lower down vacuum
+  HomeBlocks();
+  BlockHomingStation_pos += 7;
+  Stepper1->step(40, FORWARD, MICROSTEP);
+  Z_AxisServo(15, 20);
 
-
-
-
-  // GO TO BLOCK -- THEN GO TO DROP OFF LOCATION
-  GoTo(350, 400);
-
-  if(BlockColorAcquisition() == tileData[0][1]){
-    GoTo(tileData[0][0], 400);
-  }
-  if(BlockColorAcquisition() == tileData[1][1]){
-    GoTo(tileData[1][0], 400);
-  }
-  if(BlockColorAcquisition() == tileData[2][1]){
-    GoTo(tileData[2][0], 400);
-  }
-  if(BlockColorAcquisition() == tileData[3][1]){
-    GoTo(tileData[3][0], 400);
-  }
-
-
-  delay(1000);
+  HomeCarriage(500);
 
 
 
-  // go home faster
-  GoTo(10, 400);
 
-  
 
 }
 
@@ -1013,7 +960,7 @@ int TileColorAcquisition(){
   tcs.setInterrupt(false);  // turn on LED
 
   // Read sensor input (takes 50ms to read)
-  delay(60);  
+  delay(2);  
   tcs.getRGB(&red, &green, &blue);
   //tcs.getRawData(&red_raw, &green_raw, &blue_raw, &clear_raw);
   tcs.setInterrupt(true);  // turn off LED
@@ -1181,7 +1128,7 @@ void GoTo(int new_pos, int speed){
 }
 
 /*  X-AXIS: MOVE COLORED BLOCK TO MATCHING TILE
- *  Moves x-carriage to 
+ *  Moves x-carriage with block picked up to a matching color tile
  *  Function Assumes Block has been scanned and picked up already
  *  (func does not scan block, pick up block or drop block)
  *  Credit: TEAM 211
@@ -1205,7 +1152,7 @@ void HomeCarriage(){
     carriage_homeState = digitalRead(returnpin);
     if(carriage_homeState == LOW){
       Carriage_pos = 0; // set pos marker to 0 - home
-      Stepper1->release(); // release motor current
+      Stepper1->release(); // release motor current (prevents heating up at idle)
       
       if (serialDebugger){
         Serial.println("Carriage: Home Position");
@@ -1215,6 +1162,33 @@ void HomeCarriage(){
     Stepper1->step(1 * stepsPerMM, FORWARD, MICROSTEP);
     if (serialDebugger){
       Serial.println("Carriage: Homing...");
+    }
+  }
+  while(carriage_homeState == HIGH); 
+}
+
+/*
+ * HOME BLOCK SUBROUTINE
+ * Logic for moving a block to be picked up at a known pos
+ * Dependency: Adafruit_MotorShield.h
+ * Credit: TEAM 211
+ */ 
+void HomeCarriage(int speed){
+  Stepper1->setSpeed(speed);
+  do{
+    carriage_homeState = digitalRead(returnpin);
+    if(carriage_homeState == LOW){
+      Carriage_pos = 0; // set pos marker to 0 - home
+      Stepper1->release(); // release motor current (prevents heating up at idle)
+      
+      if (serialDebugger){
+        Serial.println("Carriage: Home Position");
+      }
+      break;
+    }
+    Stepper1->step(1 * stepsPerMM, FORWARD, DOUBLE);
+    if (serialDebugger){
+      Serial.print("Carriage: Homing at "); Serial.print(speed); Serial.println("-speed");
     }
   }
   while(carriage_homeState == HIGH); 
